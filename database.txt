@@ -1,0 +1,180 @@
+-- Admin
+CREATE TABLE admin_account (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50) NOT NULL,
+  password VARCHAR(255) NOT NULL
+);
+
+INSERT INTO admin_account (username, password)
+VALUES ('admin', 'admin');
+
+
+-- Rooms table (Updated: remove decks table, add deck counts + price)
+CREATE TABLE rooms (
+  room_id INT AUTO_INCREMENT PRIMARY KEY,
+  room_number VARCHAR(50) NOT NULL,
+  room_type ENUM('Bed Spacer', 'Whole Room') NOT NULL,
+  deck_type ENUM('Upper ', 'Lower ') DEFAULT NULL,
+  price DECIMAL(10,2) NOT NULL,
+  capacity INT NOT NULL,
+  available INT NOT NULL DEFAULT 0,
+  status ENUM('Available','Full') NOT NULL DEFAULT 'Available',
+  upper_deck_count INT DEFAULT 0,
+  lower_deck_count INT DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+ALTER TABLE rooms ADD COLUMN record_status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active';
+
+
+
+INSERT INTO rooms 
+(room_number, room_type, deck_type, price, capacity, available, status, upper_deck_count, lower_deck_count) 
+VALUES
+('101', 'Bed Spacer', 'Lower Deck', 2000.00, 4, 4, 'Available', 2, 2),
+('102', 'Bed Spacer', 'Upper Deck', 1500.00, 6, 6, 'Available', 3, 3),
+('201', 'Whole Room', NULL, 5000.00, 1, 1, 'Available', 0, 0);
+
+
+CREATE TABLE tenants (
+  tenant_id INT AUTO_INCREMENT PRIMARY KEY,
+  tenant_name VARCHAR(100) NOT NULL,
+  profile_pic VARCHAR(255),
+  proof_pic VARCHAR(255),
+  room_id INT NOT NULL,
+  deck_type ENUM('Lower Deck', 'Upper Deck') NULL, -- only used if Bed Spacer
+  address VARCHAR(255) NOT NULL,
+  contact_number VARCHAR(20) NOT NULL,
+  guardian_contact VARCHAR(20) NOT NULL,
+  status ENUM('Active', 'Inactive') DEFAULT 'Active',
+  date_started DATE NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE CASCADE
+);
+
+
+-- Recreate billing table from scratch
+CREATE TABLE billing (
+    bill_id INT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT NOT NULL,
+    room_id INT NOT NULL,
+    bill_date DATE DEFAULT NULL,
+    amount_due DECIMAL(10,2) DEFAULT 0.00,
+    description TEXT,
+    due_date DATE DEFAULT NULL,
+    base_rent DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    utility_fee VARCHAR(255) DEFAULT '',
+    utility_amount DECIMAL(10,2) DEFAULT 0.00,
+    add_charges VARCHAR(255) DEFAULT '',
+    add_amount DECIMAL(10,2) DEFAULT 0.00,
+    previous_balance DECIMAL(10,2) DEFAULT 0.00,
+    previous_credit DECIMAL(10,2) DEFAULT 0.00,   -- sobra gikan last month
+    balance DECIMAL(10,2) DEFAULT 0.00,
+    credit_balance DECIMAL(10,2) DEFAULT 0.00,    -- sobra current month
+    status ENUM('Unpaid','Partial','Settled','Paid') DEFAULT 'Unpaid',
+    payment_method VARCHAR(50) DEFAULT NULL,
+    payment_amount DECIMAL(10,2) DEFAULT 0.00,
+    total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    other_amount DECIMAL(10,2) DEFAULT 0.00,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+    FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+ALTER TABLE billing 
+ADD COLUMN interest DECIMAL(10,2) DEFAULT 0.00 AFTER add_amount,
+ADD COLUMN total_with_interest DECIMAL(10,2) DEFAULT 0.00 AFTER total_amount; 
+ADD COLUMN payment_date DATE DEFAULT NULL AFTER payment_amount;
+
+
+
+
+-- Payments
+CREATE TABLE payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    bill_id INT NOT NULL,
+    payment_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (bill_id) REFERENCES billing(bill_id) ON DELETE CASCADE
+);
+
+
+-- SMS Logs
+CREATE TABLE sms_logs (
+  sms_id INT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id INT,
+  recipient_type ENUM('Tenant', 'Parent'),
+  contact_number VARCHAR(15),
+  message TEXT,
+  date_sent DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
+);
+
+CREATE TABLE bill_items (
+  item_id INT AUTO_INCREMENT PRIMARY KEY,
+  bill_id INT,
+  item_name VARCHAR(100),  -- e.g. Rent, Electricity, Damages
+  item_amount DECIMAL(10,2),
+  FOREIGN KEY (bill_id) REFERENCES bills(bill_id) ON DELETE CASCADE
+);
+
+ALTER TABLE bills
+ADD COLUMN other_amount DECIMAL(10,2) DEFAULT 0;
+
+
+CREATE TABLE IF NOT EXISTS bills (
+  bill_id INT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id INT,
+  bill_date DATE,
+  amount_due DECIMAL(10,2),
+  description TEXT,
+  due_date DATE,
+  status ENUM('Unpaid', 'Paid') DEFAULT 'Unpaid',
+  FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
+);
+
+
+
+CREATE TABLE settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    setting_name VARCHAR(100) UNIQUE,
+    setting_value TEXT
+);
+
+-- Sample defaults
+INSERT INTO settings (setting_name, setting_value) VALUES
+('profile_image', 'uploads/default_profile.png'),
+('header_image', 'uploads/default_header.png');
+
+CREATE TABLE invoices (
+    invoice_id INT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT NOT NULL,
+    due_date DATE NOT NULL,
+    base_rent DECIMAL(10,2) NOT NULL,
+    utility_fee DECIMAL(10,2) DEFAULT 0,
+    additional_charges DECIMAL(10,2) DEFAULT 0,
+    total_amount DECIMAL(10,2) NOT NULL,
+    payment_amount DECIMAL(10,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE
+);
+
+
+CREATE TABLE notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT NOT NULL,
+    type ENUM('reminder', 'confirmation') NOT NULL,
+    message VARCHAR(255) NOT NULL,
+    is_read TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+
+
+
+
+
+
+
+

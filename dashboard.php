@@ -1,0 +1,488 @@
+<?php
+session_start();
+if (!isset($_SESSION['admin'])) {
+    header('Location: login.php');
+    exit;
+}
+
+$host = 'localhost';
+$user = 'root';
+$pass = '';
+$db   = 'dorm_db';
+
+$conn = new mysqli($host, $user, $pass, $db);
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+$currentMonth = date('m');
+$currentYear  = date('Y');
+$currentMonthName = date('F'); // Example: September
+
+// ====== Stats ======
+$tenantsCount = $conn->query("SELECT COUNT(*) AS count FROM tenants WHERE status='Active'")->fetch_assoc()['count'];
+$roomsCount = $conn->query("SELECT COUNT(*) AS count FROM rooms WHERE record_status='Active'")->fetch_assoc()['count'];
+
+
+
+// ====== Total Income (sum of all payments within current month) ======
+// ====== Function to compute balances ======
+function computeBalances($total, $payment, $prev_credit) {
+    $creditBalance = 0;
+    $balance = 0;
+
+    if ($payment > $total) {
+        $creditBalance = $payment - $total;
+    } elseif (($payment + $prev_credit) > $total) {
+        $creditBalance = ($payment + $prev_credit) - $total;
+    }
+
+    if (($payment + $prev_credit) < $total) {
+        $balance = $total - ($payment + $prev_credit);
+    }
+
+    return [
+        "credit" => $creditBalance,
+        "balance" => $balance
+    ];
+}
+
+// ====== Fetch current month payments ======
+$prev_credit = 0;
+$paidTenants = [];
+
+$query = "
+    SELECT b.*, t.tenant_name, t.profile_pic, r.room_number, t.status AS tenant_status
+    FROM billing b
+    INNER JOIN tenants t ON b.tenant_id = t.tenant_id
+    INNER JOIN rooms r ON t.room_id = r.room_id
+    WHERE 
+        b.payment_amount > 0
+        AND t.status = 'Active'
+        AND MONTH(b.due_date) = $currentMonth 
+        AND YEAR(b.due_date) = $currentYear
+    ORDER BY b.due_date ASC
+";
+
+$res = $conn->query($query);
+
+while ($row = $res->fetch_assoc()) {
+
+    // Decode JSON fields safely
+    $utility_amounts = json_decode($row['utility_amount'], true);
+    if (!is_array($utility_amounts)) $utility_amounts = [$utility_amounts ?? 0];
+
+    $add_amounts = json_decode($row['add_amount'], true);
+    if (!is_array($add_amounts)) $add_amounts = [$add_amounts ?? 0];
+
+    $base_rent        = floatval($row['base_rent'] ?? 0);
+    $utility_total    = array_sum(array_map('floatval', $utility_amounts));
+    $add_total        = array_sum(array_map('floatval', $add_amounts));
+    $interest         = floatval($row['interest'] ?? 0);
+    $previous_balance = floatval($row['previous_balance'] ?? 0);
+    $other_amount     = floatval($row['other_amount'] ?? 0);
+
+    $total = $base_rent + $utility_total + $add_total + $interest + $previous_balance + $other_amount;
+    $payment = floatval($row['payment_amount'] ?? 0);
+
+    $status = getBillingStatus($total, $payment, $prev_credit);
+    $balances = computeBalances($total, $payment, $prev_credit);
+
+    $row['status'] = $status;
+    $row['credit_balance'] = $balances['credit'];
+    $row['balance'] = $balances['balance'];
+    $row['total'] = $total;
+
+    $paidTenants[] = $row;
+
+    // Update previous credit
+    if ($payment > $total) {
+        $prev_credit = $payment - $total;
+    } elseif ($prev_credit > 0 && ($prev_credit + $payment) > $total) {
+        $prev_credit = ($prev_credit + $payment) - $total;
+    } else {
+        $prev_credit = 0;
+    }
+}
+
+// ====== Total Income ======
+$totalIncome = 0;
+$settledCount = $partialCount = $pendingCount = 0;
+foreach ($paidTenants as $p) {
+    $totalIncome += floatval($p['payment_amount']);
+    if ($p['status'] == "Settled") $settledCount++;
+    elseif ($p['status'] == "Partial") $partialCount++;
+    else $pendingCount++;
+}
+
+
+// Rooms Occupied (full rooms)
+$roomsOccupiedRes = $conn->query("
+    SELECT COUNT(*) AS count FROM (
+        SELECT r.room_id, r.capacity, COUNT(t.tenant_id) AS tenants_count
+        FROM rooms r
+        LEFT JOIN tenants t ON r.room_id = t.room_id AND t.status = 'Active'
+        WHERE r.record_status = 'Active'
+        GROUP BY r.room_id
+        HAVING tenants_count >= r.capacity
+    ) AS occupied_rooms
+");
+$roomsOccupied = $roomsOccupiedRes->fetch_assoc()['count'];
+
+// Rooms Available (not full)
+$roomsAvailableRes = $conn->query("
+    SELECT COUNT(*) AS count FROM (
+        SELECT r.room_id, r.capacity, COUNT(t.tenant_id) AS tenants_count
+        FROM rooms r
+        LEFT JOIN tenants t ON r.room_id = t.room_id AND t.status = 'Active'
+        WHERE r.record_status = 'Active'
+        GROUP BY r.room_id
+        HAVING tenants_count < r.capacity
+    ) AS available_rooms
+");
+$roomsAvailable = $roomsAvailableRes->fetch_assoc()['count'];
+
+// ====== Billing Status Function ======
+function getBillingStatus($total, $payment, $prev_credit) {
+    if ($prev_credit >= $total) {
+        return "Settled";
+    }
+    if (($prev_credit + $payment) >= $total) {
+        return "Settled";
+    }
+    if ($payment > 0) {
+        return "Partial";
+    }
+    return "Pending";
+}
+
+// ====== Compute Settled / Partial / Pending ======
+$settledCount = $partialCount = $pendingCount = 0;
+
+$billingRes = $conn->query("
+    SELECT b.* 
+    FROM billing b
+    INNER JOIN tenants t ON b.tenant_id = t.tenant_id
+    WHERE 
+        MONTH(b.due_date) = $currentMonth
+        AND YEAR(b.due_date) = $currentYear
+        AND t.status = 'Active'
+");
+
+
+while ($bill = $billingRes->fetch_assoc()) {
+
+
+
+    // ====== Fetch Notifications ======
+$notifications = $conn->query("
+    SELECT n.id, n.tenant_id, t.tenant_name, n.type, n.message, n.is_read, n.created_at
+    FROM notifications n
+    JOIN tenants t ON n.tenant_id = t.tenant_id
+    ORDER BY n.created_at DESC
+");
+
+
+    // Safely decode JSON fields
+    $utility_amounts = json_decode($bill['utility_amount'], true);
+    if (!is_array($utility_amounts)) $utility_amounts = [$utility_amounts ?? 0];
+
+    $add_amounts = json_decode($bill['add_amount'], true);
+    if (!is_array($add_amounts)) $add_amounts = [$add_amounts ?? 0];
+
+    // Compute totals
+    $base_rent        = floatval($bill['base_rent'] ?? 0);
+    $utility_total    = array_sum(array_map('floatval', $utility_amounts));
+    $add_total        = array_sum(array_map('floatval', $add_amounts));
+    $interest         = floatval($bill['interest'] ?? 0);
+    $previous_balance = floatval($bill['previous_balance'] ?? 0);
+    $other_amount     = floatval($bill['other_amount'] ?? 0);
+
+    $total_amount = $base_rent + $utility_total + $add_total + $interest + $previous_balance + $other_amount;
+    $payment      = floatval($bill['payment_amount'] ?? 0);
+
+    // Determine billing status per bill
+    if ($payment >= $total_amount) {
+        $settledCount++;
+    } elseif ($payment > 0 && $payment < $total_amount) {
+        $partialCount++;
+    } else {
+        $pendingCount++;
+    }
+}
+
+// ====== Monthly Income for Chart ======
+$monthlyIncome = array_fill(1, 12, 0);
+
+$sqlIncome = "
+    SELECT MONTH(b.due_date) AS month, SUM(b.payment_amount) AS total 
+    FROM billing b
+    INNER JOIN tenants t ON b.tenant_id = t.tenant_id
+    WHERE YEAR(b.due_date) = ? AND t.status = 'Active'
+    GROUP BY MONTH(b.due_date)
+";
+$stmtIncome = $conn->prepare($sqlIncome);
+$stmtIncome->bind_param("i", $currentYear);
+$stmtIncome->execute();
+$resIncome = $stmtIncome->get_result();
+while ($row = $resIncome->fetch_assoc()) {
+    $month = (int)$row['month'];
+    $monthlyIncome[$month] = (float)$row['total'];
+}
+
+// ====== Monthly Total Tenants Due ======
+$monthlyDue = array_fill(1, 12, 0);
+
+$sqlDue = "SELECT MONTH(due_date) AS month, COUNT(*) AS total_due
+           FROM billing
+           WHERE YEAR(due_date) = ?
+           GROUP BY MONTH(due_date)";
+$stmtDue = $conn->prepare($sqlDue);
+$stmtDue->bind_param("i", $currentYear);
+$stmtDue->execute();
+$resDue = $stmtDue->get_result();
+while ($row = $resDue->fetch_assoc()) {
+    $month = (int)$row['month'];
+    $monthlyDue[$month] = (int)$row['total_due'];
+}
+
+// ====== Monthly Settled / Partial / Pending ======
+$monthlySettled = array_fill(1, 12, 0);
+$monthlyPartial = array_fill(1, 12, 0);
+$monthlyPending = array_fill(1, 12, 0);
+
+$sqlStatus = "
+    SELECT 
+        MONTH(b.due_date) AS month,
+        SUM(CASE WHEN b.payment_amount >= (b.base_rent + COALESCE(b.previous_balance,0) + COALESCE(b.other_amount,0) + COALESCE(b.interest,0) + COALESCE(b.add_amount,0) + COALESCE(b.utility_amount,0)) THEN 1 ELSE 0 END) AS settled,
+        SUM(CASE WHEN b.payment_amount > 0 AND b.payment_amount < (b.base_rent + COALESCE(b.previous_balance,0) + COALESCE(b.other_amount,0) + COALESCE(b.interest,0) + COALESCE(b.add_amount,0) + COALESCE(b.utility_amount,0)) THEN 1 ELSE 0 END) AS partial,
+        SUM(CASE WHEN b.payment_amount = 0 THEN 1 ELSE 0 END) AS pending
+    FROM billing b
+    INNER JOIN tenants t ON b.tenant_id = t.tenant_id
+    WHERE YEAR(b.due_date) = ? AND t.status = 'Active'
+    GROUP BY MONTH(b.due_date)
+";
+$stmtStatus = $conn->prepare($sqlStatus);
+$stmtStatus->bind_param("i", $currentYear);
+$stmtStatus->execute();
+$resStatus = $stmtStatus->get_result();
+
+while ($row = $resStatus->fetch_assoc()) {
+    $month = (int)$row['month'];
+
+    if ($monthlyDue[$month] > 0) {
+        // Percentages
+        $monthlySettled[$month] = round(($row['settled'] / $monthlyDue[$month]) * 100, 2);
+        $monthlyPartial[$month] = round(($row['partial'] / $monthlyDue[$month]) * 100, 2);
+        $monthlyPending[$month] = round(($row['pending'] / $monthlyDue[$month]) * 100, 2);
+    } else {
+        $monthlySettled[$month] = 0;
+        $monthlyPartial[$month] = 0;
+        $monthlyPending[$month] = 0;
+    }
+}
+
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin Dashboard - Ben & Sof Dormitory</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="css/new_dashboard.css">
+</head>
+<body>
+<?php include 'sidebar.php'; ?>
+<div class="main-content">
+<div class="container-fluid">
+
+  <?php
+// ====== Fetch Header Image ======
+$header = $conn->query("SELECT setting_value FROM settings WHERE setting_name='header_image'")->fetch_assoc();
+$header_pic = $header ? $header['setting_value'] : "uploads/default_header.png";
+
+// ====== Fetch Notifications ======
+$notifications = $conn->query("
+    SELECT n.id, n.tenant_id, t.tenant_name, n.type, n.message, n.is_read, n.created_at
+    FROM notifications n
+    JOIN tenants t ON n.tenant_id = t.tenant_id
+    ORDER BY n.created_at DESC
+");
+$notifCount = $notifications->num_rows;
+?>
+
+<!-- Header with Notification & Profile -->
+<div class="d-flex justify-content-between align-items-center mt-0">
+    <h2>Dashboard</h2>
+    <div class="d-flex align-items-center">
+        <!-- Notification Icon -->
+        <div class="position-relative me-3">
+            <i class="fas fa-bell fa-lg" id="notifIcon" style="cursor:pointer;"></i>
+            <?php if($notifCount > 0): ?>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    <?php echo $notifCount; ?>
+                    <span class="visually-hidden">unread notifications</span>
+                </span>
+            <?php endif; ?>
+        </div>
+
+        <!-- Profile Box -->
+        <div class="profile-box d-flex align-items-center">
+            <img src="<?php echo $header_pic; ?>" class="rounded-circle" width="50" height="50">
+            <span class="ms-2">Admin</span>
+        </div>
+    </div>
+</div>
+<hr>
+
+<?php include 'dashboard_stats.php'; ?>
+
+<!-- Notification Modal -->
+<div class="modal fade" id="notifModal" tabindex="-1" aria-labelledby="notifModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="notifModalLabel">Notifications</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <?php if($notifCount > 0): ?>
+            <ul class="list-group">
+            <?php while($notif = $notifications->fetch_assoc()): ?>
+                <li class="list-group-item">
+                    <strong><?php echo htmlspecialchars($notif['tenant_name']); ?>:</strong>
+                    <?php echo htmlspecialchars($notif['message']); ?>
+                    <br>
+                    <small class="text-muted"><?php echo $notif['created_at']; ?></small>
+                </li>
+            <?php endwhile; ?>
+            </ul>
+        <?php else: ?>
+            <p>No notifications yet.</p>
+        <?php endif; ?>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+const ctx = document.getElementById('billingChart').getContext('2d');
+
+// PHP arrays to JS
+let incomeData = <?php echo json_encode(array_values($monthlyIncome)); ?>;
+let settledPercent = <?php echo json_encode(array_values($monthlySettled)); ?>;
+let partialPercent = <?php echo json_encode(array_values($monthlyPartial)); ?>;
+let pendingPercent = <?php echo json_encode(array_values($monthlyPending)); ?>;
+
+// Heartbeat effect function
+function heartbeat(data, amplitude = 0.05, speed = 200) {
+    return data.map((val, i) => val * (1 + amplitude * Math.sin(Date.now()/speed + i)));
+}
+
+// Chart instance
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+        datasets: [
+            {
+                label: 'Total Income (₱)',
+                data: incomeData,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40,167,69,0.2)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3,
+                pointBackgroundColor: '#28a745',
+                pointBorderColor: '#fff',
+                pointRadius: 4,
+                yAxisID: 'y'
+            },
+            {
+                label: 'Settled (%)',
+                data: settledPercent,
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0,123,255,0.05)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3,
+                pointRadius: 3,
+                yAxisID: 'y1'
+            },
+            {
+                label: 'Partial (%)',
+                data: partialPercent,
+                borderColor: '#ffc107',
+                backgroundColor: 'rgba(255,193,7,0.05)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3,
+                pointRadius: 3,
+                yAxisID: 'y1'
+            },
+            {
+                label: 'Pending (%)',
+                data: pendingPercent,
+                borderColor: '#dc3545',
+                backgroundColor: 'rgba(220,53,69,0.05)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3,
+                pointRadius: 3,
+                yAxisID: 'y1'
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 0 },
+        plugins: { legend: { display: true } },
+        scales: {
+            y: { // Total Income axis
+                beginAtZero: true,
+                suggestedMax: Math.max(...incomeData) * 1.2,
+                title: { display: true, text: 'Total Income (₱)' }
+            },
+            y1: { // Percentage axis
+                beginAtZero: true,
+                max: 100,
+                position: 'right',
+                grid: { drawOnChartArea: false },
+                title: { display: true, text: 'Percentage (%)' }
+            }
+        }
+    }
+});
+
+// Animate heartbeat for all datasets
+function animateHeartbeat() {
+    // Total Income heartbeat
+    chart.data.datasets[0].data = heartbeat(incomeData, 0.05, 200);
+
+    // Optional: small heartbeat for Settled/Partial/Pending
+    chart.data.datasets[1].data = heartbeat(settledPercent, 0.02, 300);
+    chart.data.datasets[2].data = heartbeat(partialPercent, 0.02, 300);
+    chart.data.datasets[3].data = heartbeat(pendingPercent, 0.02, 300);
+
+    chart.update('none'); // fast update without full animation
+    requestAnimationFrame(animateHeartbeat);
+}
+animateHeartbeat();
+
+
+document.getElementById('notifIcon').addEventListener('click', function() {
+    var notifModal = new bootstrap.Modal(document.getElementById('notifModal'));
+    notifModal.show();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+Pwede pud kung gusto mas simple:
+👉 “Do you want to send a due date reminder to [Tenant Name] along with their billing record?”
+
+
+2. Status before due date (example: due date = Sept 10, reminder sent Sept 6):
+Sa imong system, ang status dapat magpakita nga wala pa mabayad pero dili pud confusing nga overdue na. Suggestion status names:
+
+“Pending Payment” → kay gi-issue na ang billing, pero wala pa due.
+
+
+👉 So imong flow mahimong:
+
+Pending Payment → wala pa due, waiting for payment
+Paid → bayad na tanan
+Partially Paid → naa pay kulang
+Overdue → wala gyud nabayran past due date
+
+
+📌 Due Date Reminder Sending Flow
+
+Step 1: Owner fills out Billing Form (with due date & amount).
+
+Step 2 (System Prompt 1):
+👉 “Do you want to send [Tenant Name] a due date reminder with their billing record?”
+
+If NO → Stop process (no SMS sent).
+If YES → Go to Step 3.
+
+Step 3 (System Prompt 2 – Confirmation):
+👉 “Are you sure you want to send [Tenant Name] a due date reminder?”
+
+If NO → Cancel sending.
+If YES → Proceed.
+
+Step 4 (Automatic Action):
+✅ System sends SMS to [Tenant Name].
+✅ Status remains Pending Payment (until tenant pays).
+
+👉 This way:
+Prompt 1 = initial ask
+Prompt 2 = confirmation check
+Final = automatic sending without manual SMS button
+
+
+
+📌 Payment Confirmation Flow (with 2 Prompts)
+
+Step 1: Tenant makes a payment → system updates status
+
+Paid → Fully Paid
+
+Partially Paid → Partial Payment
+
+Overdue → Late Payment
+
+⬇️
+
+Step 2 (System Prompt 1):
+👉 Example (Paid):
+“Do you want to send [Tenant Name] a payment confirmation for full payment?”
+
+If No → Stop (no SMS sent)
+If Yes → Go to Step 3
+
+Step 3 (System Prompt 2 – Confirmation):
+👉 Example (Paid):
+“Are you sure you want to send [Tenant Name] this payment confirmation for full payment?”
+
+If No → Cancel sending
+If Yes → Go to Step 4
+
+✅ SMS is automatically sent based on status:
+Fully Paid → full payment confirmation
+Partially Paid → partial payment confirmation
+Overdue → overdue payment confirmation
+
+
+Gladys, ang “blueprint” sa context sa software development kay:
+Literal meaning: Plan or detailed drawing (like sa building construction).
+In software: Detailed plan or guide for how the system will be built.
+
+
+
+
+
+

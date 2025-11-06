@@ -1,0 +1,49 @@
+body {
+    background-color: #f0f4f3;
+    font-family: Arial, sans-serif;
+}
+.tenant-form-container {
+    max-width: 480px;
+    margin: 40px auto;
+    padding: 30px;
+    background-color: rgba(255,255,255,0.95);
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+.tenant-form-container h2 {
+    text-align: center;
+    color: #5A7D7C;
+    margin-bottom: 25px;
+}
+.tenant-form-container label {
+    display: block;
+    margin-top: 12px;
+    font-weight: bold;
+    color: #496766;
+}
+.tenant-form-container input[type=text],
+.tenant-form-container input[type=date],
+.tenant-form-container input[type=file],
+.tenant-form-container select {
+    width: 100%;
+    padding: 8px 10px;
+    margin-top: 5px;
+    border-radius: 6px;
+    border: 1px solid #5A7D7C;
+    box-sizing: border-box;
+}
+.tenant-form-container button {
+    width: 100%;
+    margin-top: 20px;
+    padding: 10px 0;
+    background-color: #5A7D7C;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+.tenant-form-container button:hover {
+    background-color: #496766;
+}

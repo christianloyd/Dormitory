@@ -1,0 +1,17 @@
+       body { font-family: Arial, sans-serif; margin: 0; background: #f0f4f3; display: flex; }
+        .main-content {
+            margin-left: 225px;
+            padding: 30px;
+            width: 100%;
+            min-height: 100vh;
+            background-color: #A3C9C3;
+        }
+        h1 { color: #313437ff; margin-bottom: 20px; }
+        .calendar { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        .calendar th, .calendar td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        .calendar th { background-color: #2C3E50; color: #fff; }
+        .calendar-day a { text-decoration: none; display: block; color: #2C3E50; }
+        .calendar-day.today { background-color: #3498DB; color: #fff; border-radius: 50%; }
+        .calendar-day-name { background-color: #2C3E50; color: #fff; }
+        .btn-month { margin-bottom: 20px; }
+    

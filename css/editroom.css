@@ -1,0 +1,65 @@
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f4f3;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .form-container {
+            background-color: rgba(255,255,255,0.9);
+            padding: 25px 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            width: 420px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #5A7D7C;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            color: #496766;
+            font-weight: bold;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 8px 10px;
+            margin-top: 5px;
+            border-radius: 6px;
+            border: 1px solid #5A7D7C;
+            box-sizing: border-box;
+        }
+
+        .btn-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            flex: 1;
+            margin: 0 5px;
+            transition: 0.3s;
+            text-align: center;
+        }
+
+        .btn-save { background-color: #5A7D7C; }
+        .btn-save:hover { background-color: #496766; }
+
+        .btn-cancel { background-color: #dc3545; }
+        .btn-cancel:hover { background-color: #c82333; }
+    
