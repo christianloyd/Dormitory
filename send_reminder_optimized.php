@@ -23,7 +23,7 @@ try {
                r.room_number,
                b.due_date, b.payment_date, b.base_rent, b.interest,
                b.utility_fee, b.utility_amount, b.add_charges, b.add_amount,
-               b.payment_amount, b.payment_method
+               b.payment_amount, b.payment_method, b.total_amount
         FROM tenants t
         LEFT JOIN billing b ON t.tenant_id = b.tenant_id
         LEFT JOIN rooms r ON t.room_id = r.room_id
@@ -50,24 +50,24 @@ try {
     $addAmounts = json_decode($tenant['add_amount'], true);
     if (!is_array($addAmounts)) $addAmounts = [];
 
-    // Calculate totals for hybrid message selection
+    // Calculate total utility and additional charges
     $total_utilities = array_sum($utilityAmounts);
     $total_additional = array_sum($addAmounts);
     $total_amount = $tenant['base_rent'] + $tenant['interest'] + $total_utilities + $total_additional;
 
-    // --- HYBRID MESSAGE: Choose format based on amount ---
-    // Threshold: ₱1,000 (configurable)
-    $amount_threshold = 1000;
-    $use_detailed = ($total_amount > $amount_threshold);
+    // --- HYBRID LOGIC: Choose message format based on amount ---
+    // If total > 1000, use detailed message
+    // If total <= 1000, use short message
+    $use_detailed = ($total_amount > 1000);
 
     if ($use_detailed) {
-        // DETAILED MESSAGE (for amounts > ₱1,000)
+        // DETAILED MESSAGE (for high amounts)
         $message = "Ben and Sof Dormitory\n";
         $message .= "Purok 1A, Mati, San Miguel, ZDS\n\n";
         $message .= "Good day, {$tenant['tenant_name']}!\n";
         $message .= "Payment reminder for your room.\n\n";
         $message .= "Room: {$tenant['room_number']}\n";
-        $message .= "Due: {$tenant['due_date']}\n\n";
+        $message .= "Due Date: {$tenant['due_date']}\n\n";
         $message .= "Charges:\n";
         $message .= "- Rent: ₱" . number_format($tenant['base_rent'],2) . "\n";
 
@@ -80,17 +80,16 @@ try {
         }
 
         if ($total_additional > 0) {
-            $message .= "- Other: ₱" . number_format($total_additional,2) . "\n";
+            $message .= "- Other Charges: ₱" . number_format($total_additional,2) . "\n";
         }
 
         $message .= "\nTotal: ₱" . number_format($total_amount,2) . "\n";
-        $message .= "\nPay within 3 days to avoid penalties.\nThank you!";
+        $message .= "\nPay within 3 days to avoid penalties. Thank you!";
 
     } else {
-        // SHORT MESSAGE (for amounts ≤ ₱1,000)
+        // SHORT MESSAGE (for lower amounts)
         $message = "Ben & Sof Dorm\n";
         $message .= "Payment Reminder\n\n";
-        $message .= "Hi {$tenant['tenant_name']}!\n";
         $message .= "Room: {$tenant['room_number']}\n";
         $message .= "Due: {$tenant['due_date']}\n";
         $message .= "Amount: ₱" . number_format($total_amount,2) . "\n\n";
@@ -155,8 +154,7 @@ try {
         'sms_preview' => $message,
         'message_type' => $use_detailed ? 'detailed' : 'short',
         'total_amount' => $total_amount,
-        'character_count' => mb_strlen($message),
-        'credits_per_sms' => ceil(mb_strlen($message) / 157)
+        'character_count' => mb_strlen($message)
     ]);
 
 } catch (Exception $e) {
@@ -166,3 +164,4 @@ try {
         'message' => $e->getMessage()
     ]);
 }
+?>

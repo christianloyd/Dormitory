@@ -83,6 +83,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                 <li><a href="#" class="tab-link active" data-target="profile"><i class="fas fa-user"></i> Change Profile</a></li>
                 <li><a href="#" class="tab-link" data-target="tenant"><i class="fas fa-users"></i> Edit Tenant Information</a></li>
                 <li><a href="#" class="tab-link" data-target="room"><i class="fas fa-door-closed"></i> Edit Room Information</a></li>
+                <li><a href="#" class="tab-link" data-target="sms"><i class="fas fa-sms"></i> SMS Settings</a></li>
                 <li><a href="#" class="tab-link" data-target="account"><i class="fas fa-key"></i> Account</a></li>
             </ul>
         </div>
@@ -126,6 +127,11 @@ $currentPage = basename($_SERVER['PHP_SELF']);
             <button type="submit" class="btn btn-success">Restore Backup</button>
         </form>
     </div>
+</div>
+
+<!-- SMS Settings Tab -->
+<div id="sms" class="settings-section">
+    <?php include 'sms_settings.php'; ?>
 </div>
 
 <!-- Account Tab -->

@@ -85,7 +85,12 @@
       </div>
       
       <div class="modal-footer">
-        <button type="button" class="btn btn-primary" id="sendReminderBtn">Send Notification</button>
+        <div id="smsStatusDiv" class="flex-grow-1 text-start" style="display:none;">
+            <!-- SMS status will be displayed here -->
+        </div>
+        <button type="button" class="btn btn-primary" id="sendReminderBtn">
+            <i class="fas fa-paper-plane"></i> Send SMS Notification
+        </button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
       </div>
 
@@ -96,8 +101,14 @@
 <script>
 document.getElementById('sendReminderBtn').addEventListener('click', function() {
     // Disable the button to prevent multiple clicks
-    this.disabled = true;
-    this.innerText = "Sending...";
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending SMS...';
+
+    // Show status div
+    const statusDiv = document.getElementById('smsStatusDiv');
+    statusDiv.style.display = 'block';
+    statusDiv.innerHTML = '<div class="alert alert-info mb-0"><i class="fas fa-info-circle"></i> Sending SMS notification...</div>';
 
     // Prepare data
     const tenant_id = "<?php echo $tenant['tenant_id']; ?>";
@@ -112,19 +123,53 @@ document.getElementById('sendReminderBtn').addEventListener('click', function() 
     .then(response => response.json())
     .then(data => {
         if(data.success){
-            alert("Reminder sent successfully!");
+            // Build success message with SMS results
+            let statusHtml = '<div class="alert alert-success mb-0">';
+            statusHtml += '<i class="fas fa-check-circle"></i> <strong>' + data.message + '</strong><br>';
+
+            if(data.sms_results && data.sms_results.length > 0) {
+                statusHtml += '<small class="mt-2 d-block">Delivery Status:</small>';
+                statusHtml += '<ul class="mb-0" style="font-size: 0.9rem;">';
+                data.sms_results.forEach(function(result) {
+                    const icon = result.status === 'sent' ?
+                        '<i class="fas fa-check-circle text-success"></i>' :
+                        '<i class="fas fa-times-circle text-danger"></i>';
+                    statusHtml += '<li>' + icon + ' ' + result.type + ' (' + result.number + '): ' + result.message + '</li>';
+                });
+                statusHtml += '</ul>';
+            }
+
+            if(data.sent_to && data.sent_to.length > 0) {
+                statusHtml += '<small class="mt-2 d-block">Sent to: ' + data.sent_to.join(', ') + '</small>';
+            }
+
+            statusHtml += '</div>';
+            statusDiv.innerHTML = statusHtml;
+
+            // Show alert
+            alert("SMS Reminder sent successfully to " + (data.sent_to ? data.sent_to.length : 0) + " recipient(s)!");
+
+            // Close modal after successful send
+            const modal = bootstrap.Modal.getInstance(document.getElementById('reminderMessageModal'));
+            if (modal) {
+                modal.hide();
+            }
         } else {
+            statusDiv.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-circle"></i> <strong>Failed:</strong> ' + data.message + '</div>';
             alert("Failed to send reminder: " + data.message);
+
+            // Re-enable button on failure
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send SMS Notification';
         }
-        // Re-enable button
-        document.getElementById('sendReminderBtn').disabled = false;
-        document.getElementById('sendReminderBtn').innerText = "Send Notification";
     })
     .catch(err => {
+        statusDiv.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-circle"></i> <strong>Error:</strong> ' + err + '</div>';
         alert("Error sending reminder: " + err);
-        document.getElementById('sendReminderBtn').disabled = false;
-        document.getElementById('sendReminderBtn').innerText = "Send Notification";
+
+        // Re-enable button
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send SMS Notification';
     });
 });
-
-
+</script>

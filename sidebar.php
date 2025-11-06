@@ -11,6 +11,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
         <li><a href="billing.php" class="<?= ($currentPage == 'billing.php') ? 'active' : '' ?>"><i class="fas fa-clipboard-list"></i> Billing</a></li>
         <li><a href="monthly_payments.php" class="<?= ($currentPage == 'monthly_payments.php') ? 'active' : '' ?>"><i class="fas fa-calendar-check"></i> Monthly Payments</a></li>
         <li><a href="invoice.php" class="<?= ($currentPage == 'invoice.php') ? 'active' : '' ?>"><i class="fas fa-file-invoice"></i> Invoice</a></li>
+        <li><a href="sms_logs.php" class="<?= ($currentPage == 'sms_logs.php') ? 'active' : '' ?>"><i class="fas fa-sms"></i> SMS Logs</a></li>
 
         <!-- ============================= -->
         <!-- Report with Dropdown Submenu -->
