@@ -8,7 +8,7 @@ require_once 'db.php';
 
 // Redirect based on login status
 if (Session::isLoggedIn()) {
-    header('Location: dashboard.php');
+    header('Location: modules/dashboard/');
 } else {
     header('Location: login.php');
 }

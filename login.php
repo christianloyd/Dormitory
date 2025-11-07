@@ -14,7 +14,7 @@ if (isset($_GET['timeout']) && $_GET['timeout'] == 1) {
 
 // Redirect if already logged in
 if (Session::isLoggedIn()) {
-    header('Location: dashboard.php');
+    header('Location: modules/dashboard/');
     exit;
 }
 
@@ -64,7 +64,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // Keep admin_username for compatibility with existing code (user.php)
             $_SESSION['admin_username'] = $user['username'];
 
-            header('Location: dashboard.php');
+            header('Location: modules/dashboard/');
             exit;
         } else {
             // Failed login - record attempt
