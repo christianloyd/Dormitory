@@ -1,38 +1,86 @@
 <?php
-session_start();
-include 'db.php';
+/**
+ * Secure Login Page with Rate Limiting and CSRF Protection
+ */
+require_once 'db.php';
 
 $error = '';
+$show_timeout_message = false;
 
-// kuhaa ang profile image (gamita as login background)
-$profile = $conn->query("SELECT setting_value FROM settings WHERE setting_name='profile_image'")->fetch_assoc();
-$login_bg = $profile ? $profile['setting_value'] : "../assets/login-bg.jpg";
+// Check for session timeout message
+if (isset($_GET['timeout']) && $_GET['timeout'] == 1) {
+    $show_timeout_message = true;
+}
 
+// Redirect if already logged in
+if (Session::isLoggedIn()) {
+    header('Location: dashboard.php');
+    exit;
+}
+
+// Fetch login background image securely
+try {
+    $bg_result = $db->select('settings', ['setting_name' => 'profile_image']);
+    $bg_row = $bg_result->fetch_assoc();
+    $login_bg = $bg_row['setting_value'] ?? 'assets/login-bg.jpg';
+} catch (Exception $e) {
+    $login_bg = 'assets/login-bg.jpg';
+}
+
+// Handle login form submission
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = trim($_POST["username"]);
-    $password = trim($_POST["password"]);
+    try {
+        // Verify CSRF token
+        if (!CSRF::verify()) {
+            throw new Exception("Security token validation failed. Please refresh and try again.");
+        }
 
-    // Fetch user with case-sensitive username (BINARY)
-    $sql = "SELECT * FROM admin_account WHERE BINARY username = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("s", $username);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    $user = $res->fetch_assoc();
+        $username = trim($_POST["username"] ?? '');
+        $password = $_POST["password"] ?? '';
 
-    if ($user) {
-        // Verify password (hashed in DB)
-        if (password_verify($password, $user['password'])) {
-            // Set sessions properly
-            $_SESSION['admin'] = true;
-            $_SESSION['admin_username'] = $user['username']; // important for user.php
-            header("Location: dashboard.php");
+        // Validate inputs
+        if (empty($username) || empty($password)) {
+            throw new Exception("Username and password are required.");
+        }
+
+        // Initialize rate limiter
+        $rateLimiter = new RateLimiter();
+
+        // Check rate limit before attempting login
+        $rateLimiter->checkLimit($username);
+
+        // Fetch user with case-sensitive username using secure Database helper
+        $sql = "SELECT * FROM admin_account WHERE BINARY username = ?";
+        $result = $db->query($sql, [$username]);
+        $user = $result->fetch_assoc();
+
+        if ($user && password_verify($password, $user['password'])) {
+            // Success - clear rate limit and create session
+            $rateLimiter->recordAttempt($username, true);
+
+            // Use Session helper for secure login
+            Session::login($username);
+
+            // Keep admin_username for compatibility with existing code (user.php)
+            $_SESSION['admin_username'] = $user['username'];
+
+            header('Location: dashboard.php');
             exit;
         } else {
-            $error = "Invalid username or password.";
+            // Failed login - record attempt
+            $rateLimiter->recordAttempt($username, false);
+
+            // Get remaining attempts for user feedback
+            $remaining = $rateLimiter->getRemainingAttempts($username);
+            if ($remaining > 0) {
+                throw new Exception("Invalid username or password. $remaining attempt(s) remaining.");
+            } else {
+                throw new Exception("Invalid username or password.");
+            }
         }
-    } else {
-        $error = "Invalid username or password.";
+
+    } catch (Exception $e) {
+        $error = $e->getMessage();
     }
 }
 ?>
@@ -93,10 +141,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <div class="welcome-text">WELCOME TO BEN AND SOF DORMITORY</div>
         <div class="login-box">
             <h2>Hi Admin!</h2>
-            <?php if ($error): ?>
-                <div class="alert alert-danger text-center"><?= $error ?></div>
+
+            <?php if ($show_timeout_message): ?>
+                <div class="alert alert-warning text-center">Session expired. Please login again.</div>
             <?php endif; ?>
-            <form method="POST">
+
+            <?php if ($error): ?>
+                <div class="alert alert-danger text-center"><?= htmlspecialchars($error) ?></div>
+            <?php endif; ?>
+
+            <form method="POST" action="login.php">
+                <?php echo CSRF::getTokenField(); ?>
+
                 <div class="mb-3">
                     <label class="form-label">Username</label>
                     <input type="text" name="username" class="form-control" required autofocus>
