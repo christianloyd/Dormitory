@@ -161,21 +161,20 @@ $totalInactive = $inactiveResult->fetch_assoc()['totalInactive'];
     Total Active Rooms: <?= $totalActive; ?>
 </div>
 <div style="margin-top:10px; font-weight:bold; color:#dc3545;">
-    Total Inactive Rooms: <?= $totalInactive; ?>
+    <a href="inactive_rooms.php" style="text-decoration:none; color:#dc3545;">Total Inactive Rooms: <?= $totalInactive; ?></a>
 </div>
 <ul class="nav nav-tabs mb-3" id="roomTabs">
   <li class="nav-item">
-    <a class="nav-link active" data-bs-toggle="tab" href="#activeRooms">Active Rooms</a>
+    <a class="nav-link active" href="rooms.php">Active Rooms</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link" data-bs-toggle="tab" href="#inactiveRooms">Inactive Rooms</a>
+    <a class="nav-link" href="inactive_rooms.php">Inactive Rooms</a>
   </li>
 </ul>
 
 
-<!-- ACTIVE ROOMS TAB -->
-<div class="tab-pane fade show active" id="activeRooms">
-  <div class="table-container" style="overflow-x:auto; overflow-y:auto; max-height:500px; border:1px solid #ddd; border-radius:8px; padding:5px;">
+<!-- ACTIVE ROOMS TABLE -->
+<div class="table-container" style="overflow-x:auto; overflow-y:auto; max-height:500px; border:1px solid #ddd; border-radius:8px; padding:5px;">
     <table id="roomTable" style="width:100%; min-width:900px; border-collapse:collapse;">
       <thead style="background-color:#f5f5f5; position:sticky; top:0; z-index:1;">
         <tr>
@@ -236,45 +235,6 @@ while ($row = mysqli_fetch_assoc($roomResult)):
             </td>
         </tr>
 <?php endwhile; ?>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- INACTIVE ROOMS TAB -->
-<div class="tab-pane fade" id="inactiveRooms">
-  <div class="table-container" style="overflow-x:auto; overflow-y:auto; max-height:500px; border:1px solid #ddd; border-radius:8px; padding:5px;">
-    <table id="inactiveRoomTable" style="width:100%; min-width:900px; border-collapse:collapse;">
-      <thead style="background-color:#f5f5f5; position:sticky; top:0; z-index:1;">
-        <tr>
-          <th>Room Number</th>
-          <th>Room Type</th>
-          <th>Capacity</th>
-          <th>Upper Decks</th>
-          <th>Lower Decks</th>
-          <th>Price</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-<?php
-$inactiveResult = $conn->query("SELECT * FROM rooms WHERE record_status = 'Inactive' ORDER BY room_number ASC");
-if ($inactiveResult->num_rows > 0) {
-    while ($row = $inactiveResult->fetch_assoc()) {
-        echo '<tr>
-                <td>' . htmlspecialchars($row['room_number']) . '</td>
-                <td>' . htmlspecialchars($row['room_type']) . '</td>
-                <td>' . htmlspecialchars($row['capacity']) . '</td>
-                <td>' . htmlspecialchars($row['upper_deck_count']) . '</td>
-                <td>' . htmlspecialchars($row['lower_deck_count']) . '</td>
-                <td>' . number_format($row['price'], 2) . '</td>
-                <td style="color:red; font-weight:bold;">Inactive</td>
-              </tr>';
-    }
-} else {
-    echo "<tr><td colspan='7' style='text-align:center;'>No inactive rooms</td></tr>";
-}
-?>
       </tbody>
     </table>
   </div>

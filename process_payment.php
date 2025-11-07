@@ -71,12 +71,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message .= str_repeat("-", 30) . "\n";
                     $message .= "Room: {$paymentInfo['room_number']}\n";
                     $message .= "Date: " . date('M d, Y', strtotime($payment_date)) . "\n";
-                    $message .= "Paid: ₱" . number_format($payment_amount, 2) . "\n";
+                    $message .= "Paid: PHP " . number_format($payment_amount, 2) . "\n";
                     $message .= "Method: {$payment_method}\n";
                     $message .= "Status: {$status}\n";
 
                     if ($status === 'Partial') {
-                        $message .= "\nBalance: ₱" . number_format($remaining_balance, 2) . "\n";
+                        $message .= "\nBalance: PHP " . number_format($remaining_balance, 2) . "\n";
                     } else {
                         $message .= "\nFully settled!\n";
                     }
@@ -88,11 +88,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = "Ben & Sof Dorm\n";
                     $message .= "Payment Received!\n\n";
                     $message .= "Room: {$paymentInfo['room_number']}\n";
-                    $message .= "Paid: ₱" . number_format($payment_amount, 2) . "\n";
+                    $message .= "Paid: PHP " . number_format($payment_amount, 2) . "\n";
                     $message .= "Method: {$payment_method}\n";
 
                     if ($status === 'Partial') {
-                        $message .= "Balance: ₱" . number_format($remaining_balance, 2) . "\n";
+                        $message .= "Balance: PHP " . number_format($remaining_balance, 2) . "\n";
                     } else {
                         $message .= "Status: Settled\n";
                     }

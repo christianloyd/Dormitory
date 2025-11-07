@@ -69,21 +69,21 @@ try {
         $message .= "Room: {$tenant['room_number']}\n";
         $message .= "Due: {$tenant['due_date']}\n\n";
         $message .= "Charges:\n";
-        $message .= "- Rent: ₱" . number_format($tenant['base_rent'],2) . "\n";
+        $message .= "- Rent: PHP " . number_format($tenant['base_rent'],2) . "\n";
 
         if ($tenant['interest'] > 0) {
-            $message .= "- Interest: ₱" . number_format($tenant['interest'],2) . "\n";
+            $message .= "- Interest: PHP " . number_format($tenant['interest'],2) . "\n";
         }
 
         if ($total_utilities > 0) {
-            $message .= "- Utilities: ₱" . number_format($total_utilities,2) . "\n";
+            $message .= "- Utilities: PHP " . number_format($total_utilities,2) . "\n";
         }
 
         if ($total_additional > 0) {
-            $message .= "- Other: ₱" . number_format($total_additional,2) . "\n";
+            $message .= "- Other: PHP " . number_format($total_additional,2) . "\n";
         }
 
-        $message .= "\nTotal: ₱" . number_format($total_amount,2) . "\n";
+        $message .= "\nTotal: PHP " . number_format($total_amount,2) . "\n";
         $message .= "\nPay within 3 days to avoid penalties.\nThank you!";
 
     } else {
@@ -93,7 +93,7 @@ try {
         $message .= "Hi {$tenant['tenant_name']}!\n";
         $message .= "Room: {$tenant['room_number']}\n";
         $message .= "Due: {$tenant['due_date']}\n";
-        $message .= "Amount: ₱" . number_format($total_amount,2) . "\n\n";
+        $message .= "Amount: PHP " . number_format($total_amount,2) . "\n\n";
         $message .= "Pay within 3 days.\nThank you!";
     }
 

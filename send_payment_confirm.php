@@ -60,12 +60,12 @@ try {
         $message .= str_repeat("-", 30) . "\n";
         $message .= "Room: {$payment['room_number']}\n";
         $message .= "Date: " . date('M d, Y', strtotime($payment['payment_date'])) . "\n";
-        $message .= "Paid: ₱" . number_format($payment['payment_amount'], 2) . "\n";
+        $message .= "Paid: PHP " . number_format($payment['payment_amount'], 2) . "\n";
         $message .= "Method: {$payment['payment_method']}\n";
         $message .= "Status: {$payment['status']}\n";
 
         if ($payment['status'] === 'Partial') {
-            $message .= "\nBalance: ₱" . number_format($remaining_balance, 2) . "\n";
+            $message .= "\nBalance: PHP " . number_format($remaining_balance, 2) . "\n";
             $message .= "Due: " . date('M d, Y', strtotime($payment['due_date'])) . "\n";
         } else {
             $message .= "\nFully settled!\n";
@@ -78,11 +78,11 @@ try {
         $message = "Ben & Sof Dorm\n";
         $message .= "Payment Received!\n\n";
         $message .= "Room: {$payment['room_number']}\n";
-        $message .= "Paid: ₱" . number_format($payment['payment_amount'], 2) . "\n";
+        $message .= "Paid: PHP " . number_format($payment['payment_amount'], 2) . "\n";
         $message .= "Method: {$payment['payment_method']}\n";
 
         if ($payment['status'] === 'Partial') {
-            $message .= "Balance: ₱" . number_format($remaining_balance, 2) . "\n";
+            $message .= "Balance: PHP " . number_format($remaining_balance, 2) . "\n";
         } else {
             $message .= "Status: Settled\n";
         }

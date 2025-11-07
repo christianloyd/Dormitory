@@ -1,0 +1,29 @@
+# Environment Configuration (IMPORTANT - Keep credentials secure!)
+.env
+
+# PHP Error Logs
+php_error_log
+error_log
+
+# Uploaded Files (optional - comment out if you want to track uploads)
+uploads/*
+!uploads/.gitkeep
+
+# Temporary Files
+*.tmp
+*.cache
+
+# IDE/Editor Files
+.vscode/
+.idea/
+*.sublime-*
+.DS_Store
+
+# Backup Files
+*.bak
+*.backup
+*~
+
+# OS Files
+Thumbs.db
+.DS_Store

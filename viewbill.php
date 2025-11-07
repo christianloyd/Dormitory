@@ -54,12 +54,40 @@ $showReminderPrompt = false;
 $tenant_name = $tenant['tenant_name'];
 $guardian_name = $tenant['guardian_name'] ?? '';
 
+// Check if there are pending bills
+$hasPendingBills = false;
+$oldestPendingBillDate = null;
+
 foreach ($bill_history as $bill) {
-    // Only show reminder if status is Pending
     if ($bill['status'] === 'Pending') {
-        $showReminderPrompt = true;
-        break;
+        $hasPendingBills = true;
+        $oldestPendingBillDate = $bill['due_date'];
+        break; // Get the oldest pending bill
     }
+}
+
+// Only show reminder prompt if:
+// 1. There are pending bills
+// 2. AND no reminder SMS sent for this tenant for the current pending bill period
+if ($hasPendingBills && $oldestPendingBillDate) {
+    // Check if reminder SMS already sent for this bill period
+    // We check if any reminder (containing "Payment Reminder") was sent after the bill was created
+    $checkSmsStmt = $conn->prepare("
+        SELECT COUNT(*) as reminder_count
+        FROM sms_logs
+        WHERE tenant_id = ?
+        AND message LIKE '%Payment Reminder%'
+        AND status = 'sent'
+        AND DATE(date_sent) >= DATE(?)
+    ");
+
+    $checkSmsStmt->bind_param("is", $tenant_id, $oldestPendingBillDate);
+    $checkSmsStmt->execute();
+    $smsCheck = $checkSmsStmt->get_result()->fetch_assoc();
+    $checkSmsStmt->close();
+
+    // Show prompt only if no reminder sent yet
+    $showReminderPrompt = ($smsCheck['reminder_count'] == 0);
 }
 
 // Determine if payment confirmation prompt should show
