@@ -1,5 +1,9 @@
 <?php
-include 'db.php';
+/**
+ * SMS Module - SMS Settings
+ * Path: /modules/sms/settings.php
+ */
+require_once '../../includes/auth_check.php';
 
 // Get current SMS setting from database
 $sms_enabled = true; // default

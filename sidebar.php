@@ -11,7 +11,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
         <li><a href="<?= BASE_PATH ?>/modules/billing/" class="<?= (strpos($_SERVER['REQUEST_URI'], '/billing/') !== false) ? 'active' : '' ?>"><i class="fas fa-clipboard-list"></i> Billing</a></li>
         <li><a href="<?= BASE_PATH ?>/modules/reports/monthly_payments.php" class="<?= (strpos($_SERVER['REQUEST_URI'], '/monthly_payments.php') !== false) ? 'active' : '' ?>"><i class="fas fa-calendar-check"></i> Monthly Payments</a></li>
         <li><a href="<?= BASE_PATH ?>/modules/invoice/" class="<?= (strpos($_SERVER['REQUEST_URI'], '/invoice/') !== false) ? 'active' : '' ?>"><i class="fas fa-file-invoice"></i> Invoice</a></li>
-        <li><a href="sms_logs.php" class="<?= ($currentPage == 'sms_logs.php') ? 'active' : '' ?>"><i class="fas fa-sms"></i> SMS Logs</a></li>
+        <li><a href="<?= BASE_PATH ?>/modules/sms/" class="<?= (strpos($_SERVER['REQUEST_URI'], '/sms/') !== false) ? 'active' : '' ?>"><i class="fas fa-sms"></i> SMS Logs</a></li>
 
         <!-- ============================= -->
         <!-- Report with Dropdown Submenu -->
@@ -29,7 +29,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
         </li>
         <!-- ============================= -->
 
-        <li><a href="user.php" class="<?= ($currentPage == 'user.php') ? 'active' : '' ?>"><i class="fas fa-cog"></i> Settings</a></li>
+        <li><a href="<?= BASE_PATH ?>/modules/settings/" class="<?= (strpos($_SERVER['REQUEST_URI'], '/settings/') !== false) ? 'active' : '' ?>"><i class="fas fa-cog"></i> Settings</a></li>
     </ul>
 
     <!-- Logout button fixed at bottom -->

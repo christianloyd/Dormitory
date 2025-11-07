@@ -1,11 +1,9 @@
 <?php
-session_start();
-if (!isset($_SESSION['admin'])) {
-    header("Location: login.php");
-    exit;
-}
-
-include 'db.php';
+/**
+ * SMS Module - SMS Logs
+ * Path: /modules/sms/index.php
+ */
+require_once '../../includes/auth_check.php';
 
 // Initialize SMS Helper
 $smsHelper = new SMSHelper($conn);
@@ -108,7 +106,7 @@ $total_pages = ceil($total_records / $limit);
     </style>
 </head>
 <body>
-    <?php include 'sidebar.php'; ?>
+    <?php include '../../sidebar.php'; ?>
 
     <div class="container-fluid">
         <div class="row">
@@ -161,7 +159,7 @@ $total_pages = ceil($total_records / $limit);
                 <!-- Filters -->
                 <div class="card mb-3">
                     <div class="card-body">
-                        <form method="GET" action="sms_logs.php" class="row g-3">
+                        <form method="GET" action="index.php" class="row g-3">
                             <div class="col-md-3">
                                 <label class="form-label">Status</label>
                                 <select name="status" class="form-select">
@@ -186,7 +184,7 @@ $total_pages = ceil($total_records / $limit);
                                     <button type="submit" class="btn btn-primary">
                                         <i class="bi bi-search"></i> Filter
                                     </button>
-                                    <a href="sms_logs.php" class="btn btn-secondary">
+                                    <a href="index.php" class="btn btn-secondary">
                                         <i class="bi bi-x"></i> Clear
                                     </a>
                                 </div>

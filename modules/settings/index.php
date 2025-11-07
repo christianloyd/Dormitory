@@ -1,7 +1,9 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+/**
+ * Settings Module - User Settings
+ * Path: /modules/settings/index.php
+ */
+require_once '../../includes/auth_check.php';
 $currentPage = basename($_SERVER['PHP_SELF']);
 ?>
 
@@ -72,7 +74,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     </style>
 </head>
 <body>
-<?php include 'sidebar.php'; ?>
+<?php include '../../sidebar.php'; ?>
 
 <div class="main-content">
 <div class="settings-container">
@@ -92,7 +94,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
         <div class="settings-content">
             <!-- Profile -->
             <div id="profile" class="settings-section active">
-                <?php include "upload_image.php"; ?>
+                <?php include "../../upload_image.php"; ?>
             </div>
 
             <!-- Tenant -->
@@ -102,7 +104,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 
             <!-- Room -->
             <div id="room" class="settings-section">
-                <?php include 'room_customization.php'; ?>
+                <?php include '../../room_customization.php'; ?>
             </div>
 
            <!-- Backup -->
@@ -131,7 +133,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 
 <!-- SMS Settings Tab -->
 <div id="sms" class="settings-section">
-    <?php include 'sms_settings.php'; ?>
+    <?php include '../sms/settings.php'; ?>
 </div>
 
 <!-- Account Tab -->

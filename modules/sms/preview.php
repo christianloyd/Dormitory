@@ -1,16 +1,10 @@
 <?php
 /**
- * SMS Message Preview & Character Counter
+ * SMS Module - SMS Message Preview & Character Counter
  * Test your SMS messages and see how many credits they will cost
- * Access: http://localhost/dorm_system/sms_preview.php
+ * Path: /modules/sms/preview.php
  */
-
-session_start();
-if (!isset($_SESSION['admin'])) {
-    die("Please login as admin first. <a href='login.php'>Login</a>");
-}
-
-include 'db.php';
+require_once '../../includes/auth_check.php';
 
 // Sample data for preview
 $sample_tenant = [
