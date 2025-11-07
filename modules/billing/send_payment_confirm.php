@@ -6,7 +6,7 @@ error_reporting(E_ALL);
 // Clear accidental output
 ob_start();
 
-include 'db.php';
+include '../../db.php';
 
 try {
     // --- Get JSON POST data ---

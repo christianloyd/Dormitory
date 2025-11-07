@@ -160,14 +160,14 @@ $totalInactive = $inactiveResult->fetch_assoc()['totalInactive'];
     Total Active Rooms: <?= $totalActive; ?>
 </div>
 <div style="margin-top:10px; font-weight:bold; color:#dc3545;">
-    <a href="inactive_index.php" style="text-decoration:none; color:#dc3545;">Total Inactive Rooms: <?= $totalInactive; ?></a>
+    <a href="inactive.php" style="text-decoration:none; color:#dc3545;">Total Inactive Rooms: <?= $totalInactive; ?></a>
 </div>
 <ul class="nav nav-tabs mb-3" id="roomTabs">
   <li class="nav-item">
     <a class="nav-link active" href="index.php">Active Rooms</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link" href="inactive_index.php">Inactive Rooms</a>
+    <a class="nav-link" href="inactive.php">Inactive Rooms</a>
   </li>
 </ul>
 

@@ -68,12 +68,26 @@ if(isset($_POST['generate_bill'])){
                     <td><strong>Interest:</strong> ₱<?= number_format($row['interest'],2) ?></td>
                 </tr>
                 <tr>
-                    <td><strong>Utility Fee:</strong> <?= implode(', ', json_decode($row['utility_fee'],true) ?? []) ?></td>
-                    <td><strong>Utility Amount:</strong> ₱<?= number_format(array_sum(json_decode($row['utility_amount'],true) ?? []),2) ?></td>
+                    <?php
+                    $utility_fee = json_decode($row['utility_fee'], true);
+                    $utility_fee = is_array($utility_fee) ? $utility_fee : [$utility_fee ?? 0];
+
+                    $utility_amount = json_decode($row['utility_amount'], true);
+                    $utility_amount = is_array($utility_amount) ? $utility_amount : [$utility_amount ?? 0];
+                    ?>
+                    <td><strong>Utility Fee:</strong> <?= implode(', ', $utility_fee) ?></td>
+                    <td><strong>Utility Amount:</strong> ₱<?= number_format(array_sum(array_map('floatval', $utility_amount)), 2) ?></td>
                 </tr>
                 <tr>
-                    <td><strong>Additional Charges:</strong> <?= implode(', ', json_decode($row['add_charges'],true) ?? []) ?></td>
-                    <td><strong>Additional Amount:</strong> ₱<?= number_format(array_sum(json_decode($row['add_amount'],true) ?? []),2) ?></td>
+                    <?php
+                    $add_charges = json_decode($row['add_charges'], true);
+                    $add_charges = is_array($add_charges) ? $add_charges : [$add_charges ?? 0];
+
+                    $add_amount = json_decode($row['add_amount'], true);
+                    $add_amount = is_array($add_amount) ? $add_amount : [$add_amount ?? 0];
+                    ?>
+                    <td><strong>Additional Charges:</strong> <?= implode(', ', $add_charges) ?></td>
+                    <td><strong>Additional Amount:</strong> ₱<?= number_format(array_sum(array_map('floatval', $add_amount)), 2) ?></td>
                 </tr>
                 <tr>
                     <td><strong>Balance:</strong> ₱<?= number_format($row['balance'],2) ?></td>

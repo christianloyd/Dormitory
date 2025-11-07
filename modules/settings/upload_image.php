@@ -1,9 +1,10 @@
 <?php
 /**
- * Secure Image Upload Handler
+ * Settings Module - Secure Image Upload Handler
+ * Path: /modules/settings/upload_image.php
  * Uses FileUpload helper for validation and Database helper for secure queries
  */
-require_once 'includes/auth_check.php';
+require_once '../../includes/auth_check.php';
 
 $error = '';
 $success = '';

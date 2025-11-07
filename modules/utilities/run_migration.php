@@ -4,7 +4,7 @@
  * Execute this file once in your browser: http://localhost/dorm_system/run_migration.php
  */
 
-include 'db.php';
+include '../../db.php';
 
 echo "<h2>Running SMS Logs Migration...</h2>";
 echo "<pre>";

@@ -9,7 +9,7 @@
                             <h5>Total Tenants</h5>
                         </div>
                     </div>
-                    <div class="stat-footer"><a href="tenants.php" class="view-details">View details</a></div>
+                    <div class="stat-footer"><a href="../../modules/tenants/" class="view-details">View details</a></div>
                 </div>
             </div>
             <div class="col-md-3">
@@ -22,7 +22,7 @@
                             <h5>Total Rooms</h5>
                         </div>
                     </div>
-                    <div class="stat-footer"><a href="rooms.php" class="view-details">View details</a></div>
+                    <div class="stat-footer"><a href="../../modules/rooms/" class="view-details">View details</a></div>
                 </div>
             </div>
             <div class="col-md-3">
@@ -34,7 +34,7 @@
                             <h5>Rooms Occupied</h5>
                         </div>
                     </div>
-                    <div class="stat-footer"><a href="occupied_rooms.php" class="view-details">View details</a></div>
+                    <div class="stat-footer"><a href="../../modules/rooms/occupied.php" class="view-details">View details</a></div>
                 </div>
             </div>
             <div class="col-md-3">
@@ -46,7 +46,7 @@
                             <h5>Rooms Available</h5>
                         </div>
                     </div>
-                    <div class="stat-footer"><a href="available_rooms.php" class="view-details">View details</a></div>
+                    <div class="stat-footer"><a href="../../modules/rooms/available.php" class="view-details">View details</a></div>
                 </div>
             </div>
         </div>
@@ -62,7 +62,7 @@
                             <h5>Total Income</h5>
                         </div>
                     </div>
-                    <div class="stat-footer"><a href="total_income.php" class="view-details">View details</a></div>
+                    <div class="stat-footer"><a href="../../modules/reports/total_income.php" class="view-details">View details</a></div>
                 </div>
             </div>
             <div class="col-md-3">
@@ -74,7 +74,7 @@
                             <h5>Total Settled</h5>
                         </div>
                     </div>
-                   <div class="stat-footer"><a href="settledlist.php" class="view-details">View details</a></div>
+                   <div class="stat-footer"><a href="../../modules/billing/settled.php" class="view-details">View details</a></div>
                 </div>
             </div>
             <div class="col-md-3">
@@ -86,7 +86,7 @@
                             <h5>Total Pending Payment</h5>
                         </div>
                     </div>
-                    <div class="stat-footer"><a href="pending_payment.php" class="view-details">View details</a></div>
+                    <div class="stat-footer"><a href="../../modules/billing/pending.php" class="view-details">View details</a></div>
                 </div>
             </div>
             <div class="col-md-3">
@@ -98,7 +98,7 @@
                             <h5>Total Partial</h5>
                         </div>
                     </div>
-                    <div class="stat-footer"><a href="partial.php" class="view-details">View details</a></div>
+                    <div class="stat-footer"><a href="../../modules/billing/partial.php" class="view-details">View details</a></div>
                 </div>
             </div>
         </div>
@@ -114,9 +114,9 @@
            <div class="col-md-4">
     <div class="calendar-box">
         <h5>Calendar</h5>
-        <iframe src="calendar.php" 
-                width="100%" 
-                height="435" 
+        <iframe src="<?= BASE_PATH ?>/includes/calendar_widget.php"
+                width="100%"
+                height="435"
                 style="border:none; border-radius:8px;"></iframe>
     </div>
 </div>

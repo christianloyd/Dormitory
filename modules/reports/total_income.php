@@ -1,19 +1,9 @@
 <?php
-
-if (!isset($_SESSION['admin'])) {
-    header("Location: login.php");
-    exit();
-}
-
-$host = 'localhost';
-$user = 'root';
-$pass = '';
-$db   = 'dorm_db';
-
-$conn = new mysqli($host, $user, $pass, $db);
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
+/**
+ * Reports Module - Total Income
+ * Path: /modules/reports/total_income.php
+ */
+require_once "../../includes/auth_check.php";
 
 $currentMonth = date('m');
 $currentYear  = date('Y');

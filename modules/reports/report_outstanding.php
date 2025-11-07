@@ -1,9 +1,11 @@
 <?php
 /**
- * Reports Module
+ * Reports Module - Outstanding Balance Report Component
  * Path: /modules/reports/report_outstanding.php
  */
-require_once "../../includes/auth_check.php";// Function to render Outstanding Balance Report
+require_once "../../includes/auth_check.php";
+
+// Function to render Outstanding Balance Report
 function renderOutstandingReport($conn, $filter_month = 0, $filter_year = 0) {
     // Base query
     $sql = "SELECT 

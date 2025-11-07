@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(dir /s /b \"c:\\xampp\\htdocs\\dorm_system\\helpers\" 2)",
-      "Bash(nul)"
+      "Bash(nul)",
+      "Bash(\"c:\\xampp\\mysql\\bin\\mysql.exe\":*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(php -l:*)"
     ],
     "deny": [],
     "ask": []

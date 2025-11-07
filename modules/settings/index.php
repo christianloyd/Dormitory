@@ -94,7 +94,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
         <div class="settings-content">
             <!-- Profile -->
             <div id="profile" class="settings-section active">
-                <?php include "../../upload_image.php"; ?>
+                <?php include "upload_image.php"; ?>
             </div>
 
             <!-- Tenant -->

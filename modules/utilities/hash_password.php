@@ -1,5 +1,5 @@
 <?php
-include 'db.php';
+include '../../db.php';
 
 // Kuhaa ang admin account
 $result = $conn->query("SELECT id, password FROM admin_account");
