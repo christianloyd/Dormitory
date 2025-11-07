@@ -1,13 +1,9 @@
 <?php
 /**
- * Reports Module
+ * Reports Module - Main Reports Hub
  * Path: /modules/reports/index.php
  */
-require_once "../../includes/auth_check.php";// Security check
-if (!isset($_SESSION['admin'])) {
-    header("Location: login.php");
-    exit();
-}
+require_once "../../includes/auth_check.php";
 
 // Determine which tab to show
 $activeTab = 'billing_summary'; // default tab

@@ -160,14 +160,14 @@ $totalInactive = $inactiveResult->fetch_assoc()['totalInactive'];
     Total Active Rooms: <?= $totalActive; ?>
 </div>
 <div style="margin-top:10px; font-weight:bold; color:#dc3545;">
-    <a href="inactive_index.php" style="text-decoration:none; color:#dc3545;">Total Inactive Rooms: <?= $totalInactive; ?></a>
+    <a href="inactive.php" style="text-decoration:none; color:#dc3545;">Total Inactive Rooms: <?= $totalInactive; ?></a>
 </div>
 <ul class="nav nav-tabs mb-3" id="roomTabs">
   <li class="nav-item">
     <a class="nav-link active" href="index.php">Active Rooms</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link" href="inactive_index.php">Inactive Rooms</a>
+    <a class="nav-link" href="inactive.php">Inactive Rooms</a>
   </li>
 </ul>
 
@@ -240,10 +240,10 @@ while ($row = mysqli_fetch_assoc($roomResult)):
 </div>
 
 <!-- LINK TO ADD ROOM MODAL -->
-<?php include 'forms/add_room_modal_form.php'; ?>
+<?php include '../../forms/add_room_modal_form.php'; ?>
 
 <!-- EDIT ROOM MODAL -->
- <?php include 'forms/edit_room_modal_form.php'; ?>
+ <?php include '../../forms/edit_room_modal_form.php'; ?>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

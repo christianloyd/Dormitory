@@ -1,5 +1,8 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) 
+/**
+ * Reports Module - Collection Report Component
+ * Path: /modules/reports/report_collection.php
+ */
 require_once "../../includes/auth_check.php";
 
 $selectedMonth = isset($_GET['month']) ? intval($_GET['month']) : 0;

@@ -1,13 +1,9 @@
 <?php
 /**
- * Reports Module
+ * Reports Module - Outstanding Balance
  * Path: /modules/reports/outstanding.php
  */
-require_once "../../includes/auth_check.php";// Security check
-if (!isset($_SESSION['admin'])) {
-    header("Location: login.php");
-    exit();
-}
+require_once "../../includes/auth_check.php";
 ?>
 <!DOCTYPE html>
 <html lang="en">

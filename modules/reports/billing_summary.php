@@ -1,13 +1,9 @@
 <?php
 /**
- * Reports Module
+ * Reports Module - Billing Summary
  * Path: /modules/reports/billing_summary.php
  */
-require_once "../../includes/auth_check.php";// Security check
-if (!isset($_SESSION['admin'])) {
-    header("Location: login.php");
-    exit();
-}
+require_once "../../includes/auth_check.php";
 
 // Capture filter month/year
 $filter_month = isset($_GET['month']) ? intval($_GET['month']) : 0;

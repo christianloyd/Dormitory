@@ -114,9 +114,9 @@
            <div class="col-md-4">
     <div class="calendar-box">
         <h5>Calendar</h5>
-        <iframe src="calendar.php" 
-                width="100%" 
-                height="435" 
+        <iframe src="<?= BASE_PATH ?>/includes/calendar_widget.php"
+                width="100%"
+                height="435"
                 style="border:none; border-radius:8px;"></iframe>
     </div>
 </div>

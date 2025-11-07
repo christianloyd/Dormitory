@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(\"c:\\xampp\\mysql\\bin\\mysql.exe\":*)"
+      "Bash(\"c:\\xampp\\mysql\\bin\\mysql.exe\":*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

@@ -321,10 +321,10 @@ $inactiveCount = $inactiveQuery->fetch_assoc()['inactive_count'];
 </div>
 
 <!-- LINK TO ADD TENANT MODAL -->
-<?php include 'forms/add_tenant_modal_form.php'; ?>
+<?php include '../../forms/add_tenant_modal_form.php'; ?>
 
 <!-- LINK TO EDIT TENANT MODAL -->
-<?php include 'forms/edit_tenant_modal_form.php'; ?>
+<?php include '../../forms/edit_tenant_modal_form.php'; ?>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
