@@ -6,11 +6,11 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     <h2>Admin Panel</h2>
     <ul class="flex-grow-1">
         <li><a href="dashboard.php" class="<?= ($currentPage == 'dashboard.php') ? 'active' : '' ?>"><i class="fas fa-home"></i> Dashboard</a></li>
-        <li><a href="tenants.php" class="<?= ($currentPage == 'tenants.php') ? 'active' : '' ?>"><i class="fas fa-users"></i> Tenants</a></li>
-        <li><a href="rooms.php" class="<?= ($currentPage == 'rooms.php') ? 'active' : '' ?>"><i class="fas fa-door-open"></i> Rooms</a></li>
-        <li><a href="billing.php" class="<?= ($currentPage == 'billing.php') ? 'active' : '' ?>"><i class="fas fa-clipboard-list"></i> Billing</a></li>
-        <li><a href="monthly_payments.php" class="<?= ($currentPage == 'monthly_payments.php') ? 'active' : '' ?>"><i class="fas fa-calendar-check"></i> Monthly Payments</a></li>
-        <li><a href="invoice.php" class="<?= ($currentPage == 'invoice.php') ? 'active' : '' ?>"><i class="fas fa-file-invoice"></i> Invoice</a></li>
+        <li><a href="<?= BASE_PATH ?>/modules/tenants/" class="<?= (strpos($_SERVER['REQUEST_URI'], '/tenants/') !== false) ? 'active' : '' ?>"><i class="fas fa-users"></i> Tenants</a></li>
+        <li><a href="<?= BASE_PATH ?>/modules/rooms/" class="<?= (strpos($_SERVER['REQUEST_URI'], '/rooms/') !== false) ? 'active' : '' ?>"><i class="fas fa-door-open"></i> Rooms</a></li>
+        <li><a href="<?= BASE_PATH ?>/modules/billing/" class="<?= (strpos($_SERVER['REQUEST_URI'], '/billing/') !== false) ? 'active' : '' ?>"><i class="fas fa-clipboard-list"></i> Billing</a></li>
+        <li><a href="<?= BASE_PATH ?>/modules/reports/monthly_payments.php" class="<?= (strpos($_SERVER['REQUEST_URI'], '/monthly_payments.php') !== false) ? 'active' : '' ?>"><i class="fas fa-calendar-check"></i> Monthly Payments</a></li>
+        <li><a href="<?= BASE_PATH ?>/modules/invoice/" class="<?= (strpos($_SERVER['REQUEST_URI'], '/invoice/') !== false) ? 'active' : '' ?>"><i class="fas fa-file-invoice"></i> Invoice</a></li>
         <li><a href="sms_logs.php" class="<?= ($currentPage == 'sms_logs.php') ? 'active' : '' ?>"><i class="fas fa-sms"></i> SMS Logs</a></li>
 
         <!-- ============================= -->
@@ -21,10 +21,10 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                 <i class="fas fa-chart-bar"></i> Report
             </a>
             <ul class="submenu" style="display:none; list-style:none; padding-left:25px;">
-                <li><a href="billing_summary.php" class="<?= ($currentPage == 'billing_summary.php') ? 'active' : '' ?>">Billing Summary Report</a></li>
-                <li><a href="collection_report.php" class="<?= ($currentPage == 'collection_report.php') ? 'active' : '' ?>">Collection Report</a></li>
-                <li><a href="outstanding_balance.php" class="<?= ($currentPage == 'outstanding_balance.php') ? 'active' : '' ?>">Outstanding Balance Report</a></li>
-                <li><a href="inactive_tenant.php" class="<?= ($currentPage == 'inactive_tenant.php') ? 'active' : '' ?>">Inactive Tenant</a></li>
+                <li><a href="<?= BASE_PATH ?>/modules/reports/billing_summary.php" class="<?= (strpos($_SERVER['REQUEST_URI'], '/billing_summary.php') !== false) ? 'active' : '' ?>">Billing Summary Report</a></li>
+                <li><a href="<?= BASE_PATH ?>/modules/reports/collection.php" class="<?= (strpos($_SERVER['REQUEST_URI'], '/collection.php') !== false) ? 'active' : '' ?>">Collection Report</a></li>
+                <li><a href="<?= BASE_PATH ?>/modules/reports/outstanding.php" class="<?= (strpos($_SERVER['REQUEST_URI'], '/outstanding.php') !== false) ? 'active' : '' ?>">Outstanding Balance Report</a></li>
+                <li><a href="<?= BASE_PATH ?>/modules/tenants/inactive.php" class="<?= (strpos($_SERVER['REQUEST_URI'], '/inactive.php') !== false) ? 'active' : '' ?>">Inactive Tenant</a></li>
             </ul>
         </li>
         <!-- ============================= -->
