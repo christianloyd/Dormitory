@@ -55,4 +55,14 @@ if (!defined('SMS_SENDER')) {
 
 // Include SMS Helper
 require_once __DIR__ . '/sms_helper.php';
+
+// Define base path for navigation (web root path)
+// Automatically detect the base path for module navigation
+$script_name = dirname($_SERVER['SCRIPT_NAME']);
+$base_path = str_replace('\\', '/', $script_name);
+// Remove /modules/* from path if present
+if (strpos($base_path, '/modules/') !== false) {
+    $base_path = substr($base_path, 0, strpos($base_path, '/modules'));
+}
+define('BASE_PATH', rtrim($base_path, '/'));
 ?>
