@@ -1,11 +1,9 @@
 <?php
-session_start();
-include "db.php";
-
-if (!isset($_SESSION['admin'])) {
-    header("Location: login.php");
-    exit();
-}
+/**
+ * Settings Module - Database Backup & Restore
+ * Path: /modules/settings/backup_restore.php
+ */
+require_once '../../includes/auth_check.php';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

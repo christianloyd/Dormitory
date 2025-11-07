@@ -5,7 +5,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 <div class="sidebar d-flex flex-column">
     <h2>Admin Panel</h2>
     <ul class="flex-grow-1">
-        <li><a href="dashboard.php" class="<?= ($currentPage == 'dashboard.php') ? 'active' : '' ?>"><i class="fas fa-home"></i> Dashboard</a></li>
+        <li><a href="<?= BASE_PATH ?>/modules/dashboard/" class="<?= (strpos($_SERVER['REQUEST_URI'], '/dashboard/') !== false) ? 'active' : '' ?>"><i class="fas fa-home"></i> Dashboard</a></li>
         <li><a href="<?= BASE_PATH ?>/modules/tenants/" class="<?= (strpos($_SERVER['REQUEST_URI'], '/tenants/') !== false) ? 'active' : '' ?>"><i class="fas fa-users"></i> Tenants</a></li>
         <li><a href="<?= BASE_PATH ?>/modules/rooms/" class="<?= (strpos($_SERVER['REQUEST_URI'], '/rooms/') !== false) ? 'active' : '' ?>"><i class="fas fa-door-open"></i> Rooms</a></li>
         <li><a href="<?= BASE_PATH ?>/modules/billing/" class="<?= (strpos($_SERVER['REQUEST_URI'], '/billing/') !== false) ? 'active' : '' ?>"><i class="fas fa-clipboard-list"></i> Billing</a></li>

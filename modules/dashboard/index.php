@@ -1,19 +1,9 @@
 <?php
-session_start();
-if (!isset($_SESSION['admin'])) {
-    header('Location: login.php');
-    exit;
-}
-
-$host = 'localhost';
-$user = 'root';
-$pass = '';
-$db   = 'dorm_db';
-
-$conn = new mysqli($host, $user, $pass, $db);
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
+/**
+ * Dashboard Module - Main Dashboard
+ * Path: /modules/dashboard/index.php
+ */
+require_once '../../includes/auth_check.php';
 
 $currentMonth = date('m');
 $currentYear  = date('Y');
@@ -290,10 +280,10 @@ while ($row = $resStatus->fetch_assoc()) {
 <title>Admin Dashboard - Ben & Sof Dormitory</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<link rel="stylesheet" href="css/new_dashboard.css">
+<link rel="stylesheet" href="../../css/new_dashboard.css">
 </head>
 <body>
-<?php include 'sidebar.php'; ?>
+<?php include '../../sidebar.php'; ?>
 <div class="main-content">
 <div class="container-fluid">
 
@@ -336,7 +326,7 @@ $notifCount = $notifications->num_rows;
 </div>
 <hr>
 
-<?php include 'dashboard_stats.php'; ?>
+<?php include 'stats_widget.php'; ?>
 
 <!-- Notification Modal -->
 <div class="modal fade" id="notifModal" tabindex="-1" aria-labelledby="notifModalLabel" aria-hidden="true">

@@ -1,11 +1,9 @@
 <?php
-session_start();
-include 'db.php';
-
-if (!isset($_SESSION['admin'])) {
-    header("Location: login.php");
-    exit();
-}
+/**
+ * Settings Module - Update Account
+ * Path: /modules/settings/update_account.php
+ */
+require_once '../../includes/auth_check.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $current_password = trim($_POST['current_password']);
