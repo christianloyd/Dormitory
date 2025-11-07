@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(\"c:\\xampp\\mysql\\bin\\mysql.exe\":*)"
+      "Bash(dir /s /b \"c:\\xampp\\htdocs\\dorm_system\\helpers\" 2)",
+      "Bash(nul)"
     ],
     "deny": [],
     "ask": []

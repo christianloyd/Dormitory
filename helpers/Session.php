@@ -30,7 +30,8 @@ class Session {
         if (isset($_SESSION['last_activity'])) {
             if (time() - $_SESSION['last_activity'] > self::$timeout) {
                 self::destroy();
-                header('Location: login.php?timeout=1');
+                $basePath = self::getBasePath();
+                header('Location: ' . $basePath . '/login.php?timeout=1');
                 exit;
             }
         }
@@ -99,7 +100,8 @@ class Session {
      */
     public static function requireAuth() {
         if (!self::isLoggedIn()) {
-            header('Location: login.php');
+            $basePath = self::getBasePath();
+            header('Location: ' . $basePath . '/login.php');
             exit;
         }
     }
@@ -139,6 +141,35 @@ class Session {
             return $message;
         }
         return null;
+    }
+
+    /**
+     * Get base path for the application
+     * Calculates the web root path dynamically
+     *
+     * @return string Base path (e.g., /dorm_system)
+     */
+    private static function getBasePath() {
+        // Use BASE_PATH constant if defined
+        if (defined('BASE_PATH')) {
+            return BASE_PATH;
+        }
+
+        // Otherwise calculate it dynamically
+        $script_name = dirname($_SERVER['SCRIPT_NAME']);
+        $base_path = str_replace('\\', '/', $script_name);
+
+        // Remove /modules/* from path if present
+        if (strpos($base_path, '/modules/') !== false) {
+            $base_path = substr($base_path, 0, strpos($base_path, '/modules'));
+        }
+
+        // Remove /includes from path if present
+        if (strpos($base_path, '/includes') !== false) {
+            $base_path = substr($base_path, 0, strpos($base_path, '/includes'));
+        }
+
+        return rtrim($base_path, '/');
     }
 }
 ?>

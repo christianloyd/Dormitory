@@ -60,10 +60,7 @@ Options -Indexes
     php_value error_log /tmp/php_errors.log
 </IfModule>
 
-# Disable PHP execution in helpers directory
-<Directory "helpers">
-    <FilesMatch "\.php$">
-        Order allow,deny
-        Deny from all
-    </FilesMatch>
-</Directory>
+# Disable direct access to helpers directory
+# Note: Use location-based rules instead of <Directory> in .htaccess
+RewriteEngine On
+RewriteRule ^helpers/.*\.php$ - [F,L]

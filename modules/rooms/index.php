@@ -240,10 +240,10 @@ while ($row = mysqli_fetch_assoc($roomResult)):
 </div>
 
 <!-- LINK TO ADD ROOM MODAL -->
-<?php include 'forms/add_room_modal_form.php'; ?>
+<?php include '../../forms/add_room_modal_form.php'; ?>
 
 <!-- EDIT ROOM MODAL -->
- <?php include 'forms/edit_room_modal_form.php'; ?>
+ <?php include '../../forms/edit_room_modal_form.php'; ?>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

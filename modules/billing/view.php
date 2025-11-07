@@ -291,8 +291,8 @@ $prev_credit = 0;
 <?php 
     $prev_balance = $current_prev_balance;
     $prev_credit = $current_prev_credit;
-    include 'forms/edit_bill_form.php';
-    include 'forms/payment_modal.php';
+    include '../../forms/edit_bill_form.php';
+    include '../../forms/payment_modal.php';
 ?>
 </div>
 <?php endforeach; ?>
@@ -316,9 +316,9 @@ $prev_credit = 0;
 </div>
 
 <!-- Add Bill Modal -->
-<?php include 'forms/add_bill_form.php'; ?>
-<?php include 'forms/reminder_message_modal.php'; ?>
-<?php include 'forms/payment_confirmation_modal.php'; ?>
+<?php include '../../forms/add_bill_form.php'; ?>
+<?php include '../../forms/reminder_message_modal.php'; ?>
+<?php include '../../forms/payment_confirmation_modal.php'; ?>
 
 
 <?php

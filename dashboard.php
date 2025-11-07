@@ -1,18 +1,14 @@
 <?php
-session_start();
-if (!isset($_SESSION['admin'])) {
+/**
+ * Dashboard Page
+ * Displays admin dashboard with statistics and charts
+ */
+require_once 'db.php';
+
+// Check if user is logged in
+if (!Session::isLoggedIn()) {
     header('Location: login.php');
     exit;
-}
-
-$host = 'localhost';
-$user = 'root';
-$pass = '';
-$db   = 'dorm_db';
-
-$conn = new mysqli($host, $user, $pass, $db);
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
 }
 
 $currentMonth = date('m');

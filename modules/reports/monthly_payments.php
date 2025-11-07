@@ -1,10 +1,8 @@
 <?php
-
-if (!isset($_SESSION['admin'])) {
-    header("Location: login.php");
-    exit();
-}
-
+/**
+ * Monthly Payments Report
+ * Path: /modules/reports/monthly_payments.php
+ */
 require_once "../../includes/auth_check.php";
 
 // Get selected month & year

@@ -5,7 +5,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 <div class="sidebar d-flex flex-column">
     <h2>Admin Panel</h2>
     <ul class="flex-grow-1">
-        <li><a href="dashboard.php" class="<?= ($currentPage == 'dashboard.php') ? 'active' : '' ?>"><i class="fas fa-home"></i> Dashboard</a></li>
+        <li><a href="<?= BASE_PATH ?>/dashboard.php" class="<?= ($currentPage == 'dashboard.php') ? 'active' : '' ?>"><i class="fas fa-home"></i> Dashboard</a></li>
         <li><a href="<?= BASE_PATH ?>/modules/tenants/" class="<?= (strpos($_SERVER['REQUEST_URI'], '/tenants/') !== false) ? 'active' : '' ?>"><i class="fas fa-users"></i> Tenants</a></li>
         <li><a href="<?= BASE_PATH ?>/modules/rooms/" class="<?= (strpos($_SERVER['REQUEST_URI'], '/rooms/') !== false) ? 'active' : '' ?>"><i class="fas fa-door-open"></i> Rooms</a></li>
         <li><a href="<?= BASE_PATH ?>/modules/billing/" class="<?= (strpos($_SERVER['REQUEST_URI'], '/billing/') !== false) ? 'active' : '' ?>"><i class="fas fa-clipboard-list"></i> Billing</a></li>
@@ -34,7 +34,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 
     <!-- Logout button fixed at bottom -->
     <div class="mt-auto p-2">
-        <a href="logout.php" class="text-danger d-block">
+        <a href="<?= BASE_PATH ?>/logout.php" class="text-danger d-block">
             <i class="fas fa-sign-out-alt"></i> Logout
         </a>
     </div>
@@ -43,7 +43,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 <!-- Styles and Icons -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-<link rel="stylesheet" href="css/sidebar.css">
+<link rel="stylesheet" href="<?= BASE_PATH ?>/css/sidebar.css">
 
 <!-- Dropdown Toggle Script -->
 <script>

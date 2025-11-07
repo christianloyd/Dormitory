@@ -10,7 +10,7 @@ if (Session::isLoggedIn()) {
     Session::destroy();
 }
 
-// Redirect to login page
-header("Location: login.php");
+// Redirect to login page using absolute path
+header("Location: " . BASE_PATH . "/login.php");
 exit;
 ?>
