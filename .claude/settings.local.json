@@ -3,7 +3,8 @@
     "allow": [
       "Bash(\"c:\\xampp\\mysql\\bin\\mysql.exe\":*)",
       "Bash(git checkout:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
