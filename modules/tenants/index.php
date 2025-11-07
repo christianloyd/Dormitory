@@ -138,11 +138,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tenant_name'])) {
 <?php
 // fetch header image from DB
 $header = $conn->query("SELECT setting_value FROM settings WHERE setting_name='header_image'")->fetch_assoc();
-$header_pic = $header ? $header['setting_value'] : "uploads/default_header.png";
+$header_pic = $header ? BASE_PATH . '/' . $header['setting_value'] : BASE_PATH . "/uploads/default_header.png";
 
 // fetch profile image from DB
 $profile = $conn->query("SELECT setting_value FROM settings WHERE setting_name='profile_image'")->fetch_assoc();
-$profile_pic = $profile ? $profile['setting_value'] : "uploads/default_profile.png";
+$profile_pic = $profile ? BASE_PATH . '/' . $profile['setting_value'] : BASE_PATH . "/uploads/default_profile.png";
 ?>
 
 <div class="d-flex justify-content-between align-items-center mt-0">
@@ -238,8 +238,8 @@ $inactiveCount = $inactiveQuery->fetch_assoc()['inactive_count'];
           if ($result->num_rows > 0) {
               while ($row = $result->fetch_assoc()) {
                   echo '<tr>
-                          <td><img src="'.htmlspecialchars($row['profile_pic']).'" class="profile-pic"></td>
-                          <td><img src="'.htmlspecialchars($row['proof_pic']).'" class="proof-pic"></td>
+                          <td><img src="'.BASE_PATH.'/'.htmlspecialchars($row['profile_pic']).'" class="profile-pic"></td>
+                          <td><img src="'.BASE_PATH.'/'.htmlspecialchars($row['proof_pic']).'" class="proof-pic"></td>
                           <td>'.htmlspecialchars($row['tenant_name']).'</td>
                           <td>'.htmlspecialchars($row['room_number']).'</td>
                           <td>'.htmlspecialchars($row['room_type']).'</td>
@@ -300,8 +300,8 @@ $inactiveCount = $inactiveQuery->fetch_assoc()['inactive_count'];
         if ($inactive_result->num_rows > 0) {
             while ($row = $inactive_result->fetch_assoc()) {
                 echo '<tr>
-                        <td><img src="'.htmlspecialchars($row['profile_pic']).'" class="profile-pic"></td>
-                        <td><img src="'.htmlspecialchars($row['proof_pic']).'" class="proof-pic"></td>
+                        <td><img src="'.BASE_PATH.'/'.htmlspecialchars($row['profile_pic']).'" class="profile-pic"></td>
+                        <td><img src="'.BASE_PATH.'/'.htmlspecialchars($row['proof_pic']).'" class="proof-pic"></td>
                         <td>'.htmlspecialchars($row['tenant_name']).'</td>
                         <td>'.htmlspecialchars($row['room_number']).'</td>
                         <td>'.htmlspecialchars($row['address']).'</td>

@@ -244,7 +244,7 @@ if (isset($_GET['date'])) {
                         <tr>
                             <td>
                                 <?php if (!empty($tenant['profile_pic'])): ?>
-                                    <img src="<?php echo htmlspecialchars($tenant['profile_pic']); ?>" class="profile-pic" alt="Profile">
+                                    <img src="<?php echo BASE_PATH . '/' . htmlspecialchars($tenant['profile_pic']); ?>" class="profile-pic" alt="Profile">
                                 <?php else: ?>
                                     <i class="fa-solid fa-circle-user"></i>
                                 <?php endif; ?>

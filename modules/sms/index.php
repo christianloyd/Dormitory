@@ -34,6 +34,18 @@ $logs = $smsHelper->getAllSMSLogs($filters, $limit, $offset);
 // Get SMS statistics
 $stats = $smsHelper->getSMSStatistics();
 
+// Calculate total credits used (1 credit = 150 characters = ₱1.00)
+$credits_sql = "SELECT message FROM sms_logs WHERE status = 'sent'";
+$credits_result = $conn->query($credits_sql);
+$total_credits = 0;
+
+while ($row = $credits_result->fetch_assoc()) {
+    $message_length = strlen($row['message']);
+    $credits = ceil($message_length / 150); // 1 credit per 150 characters
+    $total_credits += $credits;
+}
+$total_cost = $total_credits; // 1 credit = ₱1.00
+
 // Get total count for pagination
 $count_sql = "SELECT COUNT(*) as total FROM sms_logs WHERE 1=1";
 if (!empty($status_filter)) {
@@ -122,7 +134,7 @@ $total_pages = ceil($total_records / $limit);
 
                 <!-- Statistics Cards -->
                 <div class="row mb-4">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="card stat-card total">
                             <div class="card-body">
                                 <h6 class="text-muted mb-2">Total SMS</h6>
@@ -130,15 +142,15 @@ $total_pages = ceil($total_records / $limit);
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="card stat-card sent">
                             <div class="card-body">
-                                <h6 class="text-muted mb-2">Sent Successfully</h6>
+                                <h6 class="text-muted mb-2">Sent</h6>
                                 <h3 class="mb-0 text-success"><?= number_format($stats['sent']) ?></h3>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="card stat-card failed">
                             <div class="card-body">
                                 <h6 class="text-muted mb-2">Failed</h6>
@@ -146,7 +158,7 @@ $total_pages = ceil($total_records / $limit);
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="card stat-card today">
                             <div class="card-body">
                                 <h6 class="text-muted mb-2">Today</h6>
@@ -154,6 +166,24 @@ $total_pages = ceil($total_records / $limit);
                             </div>
                         </div>
                     </div>
+                    <div class="col-md-2">
+                        <div class="card stat-card" style="border-left-color: #17a2b8;">
+                            <div class="card-body">
+                                <h6 class="text-muted mb-2">Credits Used</h6>
+                                <h3 class="mb-0 text-info"><?= number_format($total_credits) ?></h3>
+                                <small class="text-muted">150 chars/credit</small>
+                            </div>
+                        </div>
+                    </div>
+                    <!--<div class="col-md-2">
+                        <div class="card stat-card" style="border-left-color: #6f42c1;">
+                            <div class="card-body">
+                                <h6 class="text-muted mb-2">Total Cost</h6>
+                                <h3 class="mb-0 text-purple">₱<?= number_format($total_cost, 2) ?></h3>
+                                <small class="text-muted">1 credit = ₱1.00</small>
+                            </div>
+                        </div>
+                    </div>-->
                 </div>
 
                 <!-- Filters -->
@@ -327,6 +357,10 @@ $total_pages = ceil($total_records / $limit);
         }
 
         function viewDetails(log) {
+            // Calculate credits used
+            const messageLength = log.message.length;
+            const credits = Math.ceil(messageLength / 150);
+
             const html = `
                 <div class="row">
                     <div class="col-md-6">
@@ -345,6 +379,11 @@ $total_pages = ceil($total_records / $limit);
                             <tr><th>Message ID:</th><td>${log.message_id || 'N/A'}</td></tr>
                             <tr><th>HTTP Code:</th><td>${log.http_code || 'N/A'}</td></tr>
                             <tr><th>Error Message:</th><td>${log.error_message || 'None'}</td></tr>
+                        </table>
+                        <h6 class="mt-3">Credit Information</h6>
+                        <table class="table table-sm">
+                            <tr><th>Message Length:</th><td>${messageLength} characters</td></tr>
+                            <tr><th>Credits Used:</th><td><strong class="text-primary">${credits}</strong> credit${credits > 1 ? 's' : ''}</td></tr>
                         </table>
                     </div>
                 </div>

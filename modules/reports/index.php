@@ -92,7 +92,7 @@ body, html {
 <div class="main-content">
     <?php
     $header = $conn->query("SELECT setting_value FROM settings WHERE setting_name='header_image'")->fetch_assoc();
-    $header_pic = $header ? $header['setting_value'] : "uploads/default_header.png";
+    $header_pic = $header ? BASE_PATH . '/' . $header['setting_value'] : BASE_PATH . "/uploads/default_header.png";
     ?>
     <div class="d-flex justify-content-between align-items-center mt-0 mb-3">
         <h2>Billing Reports</h2>

@@ -104,11 +104,11 @@ $inactiveResult = $conn->query("SELECT * FROM rooms WHERE record_status='Inactiv
     <?php
 // fetch header image from DB
 $header = $conn->query("SELECT setting_value FROM settings WHERE setting_name='header_image'")->fetch_assoc();
-$header_pic = $header ? $header['setting_value'] : "uploads/default_header.png";
+$header_pic = $header ? BASE_PATH . '/' . $header['setting_value'] : BASE_PATH . "/uploads/default_header.png";
 
 // fetch profile image from DB
 $profile = $conn->query("SELECT setting_value FROM settings WHERE setting_name='profile_image'")->fetch_assoc();
-$profile_pic = $profile ? $profile['setting_value'] : "uploads/default_profile.png";
+$profile_pic = $profile ? BASE_PATH . '/' . $profile['setting_value'] : BASE_PATH . "/uploads/default_profile.png";
 ?>
 
 <div class="d-flex justify-content-between align-items-center mt-0">
@@ -247,7 +247,7 @@ while ($row = mysqli_fetch_assoc($roomResult)):
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="js/room.js"></script>
+<script src="js/rooms.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/lobibox/dist/js/lobibox.min.js"></script>
 
@@ -338,6 +338,27 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 });
+
+// ==============================
+// OPEN EDIT MODAL FUNCTION
+// Populates the edit modal with room data
+// ==============================
+function openEditModal(roomId, roomNumber, roomType, capacity, upperDeck, lowerDeck, price) {
+    // Set the hidden room ID
+    document.getElementById('edit_room_id').value = roomId;
+
+    // Populate form fields
+    document.getElementById('edit_room_number').value = roomNumber;
+    document.getElementById('edit_room_type').value = roomType;
+    document.getElementById('edit_capacity').value = capacity;
+    document.getElementById('edit_upper').value = upperDeck;
+    document.getElementById('edit_lower').value = lowerDeck;
+    document.getElementById('edit_price').value = price;
+
+    // Show the modal
+    const editModal = new bootstrap.Modal(document.getElementById('editRoomModal'));
+    editModal.show();
+}
 
 </script>
 </body>

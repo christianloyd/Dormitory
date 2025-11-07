@@ -281,6 +281,27 @@ while ($row = $resStatus->fetch_assoc()) {
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="../../css/new_dashboard.css">
+<style>
+    /* Notification styles */
+    .notif-unread {
+        background-color: #e7f3ff;
+        border-left: 4px solid #0d6efd;
+    }
+    .notif-read {
+        background-color: #f8f9fa;
+        opacity: 0.7;
+    }
+    .mark-read-btn {
+        flex-shrink: 0;
+        margin-left: 10px;
+    }
+    .notif-item {
+        transition: all 0.3s ease;
+    }
+    .notif-item:hover {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+</style>
 </head>
 <body>
 <?php include '../../sidebar.php'; ?>
@@ -290,7 +311,7 @@ while ($row = $resStatus->fetch_assoc()) {
   <?php
 // ====== Fetch Header Image ======
 $header = $conn->query("SELECT setting_value FROM settings WHERE setting_name='header_image'")->fetch_assoc();
-$header_pic = $header ? $header['setting_value'] : "uploads/default_header.png";
+$header_pic = $header ? BASE_PATH . '/' . $header['setting_value'] : BASE_PATH . "/uploads/default_header.png";
 
 // ====== Fetch Notifications ======
 $notifications = $conn->query("
@@ -298,8 +319,10 @@ $notifications = $conn->query("
     FROM notifications n
     JOIN tenants t ON n.tenant_id = t.tenant_id
     ORDER BY n.created_at DESC
+    LIMIT 50
 ");
-$notifCount = $notifications->num_rows;
+// Count only unread notifications
+$unreadCount = $conn->query("SELECT COUNT(*) as count FROM notifications WHERE is_read = 0")->fetch_assoc()['count'];
 ?>
 
 <!-- Header with Notification & Profile -->
@@ -309,9 +332,9 @@ $notifCount = $notifications->num_rows;
         <!-- Notification Icon -->
         <div class="position-relative me-3">
             <i class="fas fa-bell fa-lg" id="notifIcon" style="cursor:pointer;"></i>
-            <?php if($notifCount > 0): ?>
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                    <?php echo $notifCount; ?>
+            <?php if($unreadCount > 0): ?>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notifBadge">
+                    <?php echo $unreadCount; ?>
                     <span class="visually-hidden">unread notifications</span>
                 </span>
             <?php endif; ?>
@@ -337,14 +360,25 @@ $notifCount = $notifications->num_rows;
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <?php if($notifCount > 0): ?>
-            <ul class="list-group">
+        <?php if($notifications->num_rows > 0): ?>
+            <ul class="list-group" id="notificationList">
             <?php while($notif = $notifications->fetch_assoc()): ?>
-                <li class="list-group-item">
-                    <strong><?php echo htmlspecialchars($notif['tenant_name']); ?>:</strong>
-                    <?php echo htmlspecialchars($notif['message']); ?>
-                    <br>
-                    <small class="text-muted"><?php echo $notif['created_at']; ?></small>
+                <li class="list-group-item notif-item <?= $notif['is_read'] ? 'notif-read' : 'notif-unread' ?>" data-notif-id="<?= $notif['id'] ?>">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <strong><?php echo htmlspecialchars($notif['tenant_name']); ?>:</strong>
+                            <?php echo htmlspecialchars($notif['message']); ?>
+                            <br>
+                            <small class="text-muted"><?php echo $notif['created_at']; ?></small>
+                        </div>
+                        <?php if(!$notif['is_read']): ?>
+                            <button class="btn btn-sm btn-outline-primary mark-read-btn"
+                                    onclick="markAsRead(<?= $notif['id'] ?>)"
+                                    title="Mark as read">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        <?php endif; ?>
+                    </div>
                 </li>
             <?php endwhile; ?>
             </ul>
@@ -353,6 +387,7 @@ $notifCount = $notifications->num_rows;
         <?php endif; ?>
       </div>
       <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="markAllAsRead()">Mark All as Read</button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
@@ -473,6 +508,75 @@ document.getElementById('notifIcon').addEventListener('click', function() {
     var notifModal = new bootstrap.Modal(document.getElementById('notifModal'));
     notifModal.show();
 });
+
+// Mark single notification as read
+function markAsRead(notifId) {
+    fetch('<?= BASE_PATH ?>/modules/utilities/mark_notification_read.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'id=' + notifId
+    })
+    .then(response => {
+        if (response.ok) {
+            // Update UI
+            const notifItem = document.querySelector(`[data-notif-id="${notifId}"]`);
+            if (notifItem) {
+                notifItem.classList.remove('notif-unread');
+                notifItem.classList.add('notif-read');
+                notifItem.querySelector('.mark-read-btn')?.remove();
+            }
+            // Update badge count
+            updateNotifBadge();
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+// Mark all notifications as read
+function markAllAsRead() {
+    const unreadNotifs = document.querySelectorAll('.notif-unread');
+    const promises = [];
+
+    unreadNotifs.forEach(notif => {
+        const notifId = notif.getAttribute('data-notif-id');
+        promises.push(
+            fetch('<?= BASE_PATH ?>/modules/utilities/mark_notification_read.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'id=' + notifId
+            })
+        );
+    });
+
+    Promise.all(promises).then(() => {
+        // Update all UI elements
+        unreadNotifs.forEach(notif => {
+            notif.classList.remove('notif-unread');
+            notif.classList.add('notif-read');
+            notif.querySelector('.mark-read-btn')?.remove();
+        });
+        // Update badge
+        updateNotifBadge();
+    }).catch(error => console.error('Error:', error));
+}
+
+// Update notification badge count
+function updateNotifBadge() {
+    const unreadCount = document.querySelectorAll('.notif-unread').length;
+    const badge = document.getElementById('notifBadge');
+
+    if (badge) {
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount;
+        } else {
+            badge.remove();
+        }
+    }
+}
 </script>
 </body>
 </html>

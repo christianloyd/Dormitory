@@ -162,7 +162,7 @@ body, html {
                 <tr>
                     <td>
                         <?php if (!empty($row['profile_pic'])): ?>
-                            <img src="<?php echo htmlspecialchars($row['profile_pic']); ?>" class="profile-pic" alt="Profile">
+                            <img src="<?php echo BASE_PATH . '/' . htmlspecialchars($row['profile_pic']); ?>" class="profile-pic" alt="Profile">
                         <?php else: ?>
                             <i class="fa-solid fa-circle-user fa-2x"></i>
                         <?php endif; ?>

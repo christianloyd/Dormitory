@@ -130,7 +130,7 @@ table th, table td { vertical-align: middle; text-align:center; font-size:14px; 
         <tbody>
         <?php foreach($paidTenants as $row): ?>
         <tr>
-            <td><?php if(!empty($row['profile_pic'])): ?><img src="<?= htmlspecialchars($row['profile_pic']) ?>" class="profile-pic"><?php else: ?>-<?php endif; ?></td>
+            <td><?php if(!empty($row['profile_pic'])): ?><img src="<?= BASE_PATH . '/' . htmlspecialchars($row['profile_pic']) ?>" class="profile-pic"><?php else: ?>-<?php endif; ?></td>
             <td><?= htmlspecialchars($row['tenant_name']) ?></td>
             <td><?= htmlspecialchars($row['room_number']) ?></td>
             <td><?= date("M d, Y", strtotime($row['due_date'])) ?></td>

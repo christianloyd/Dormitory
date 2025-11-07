@@ -32,8 +32,29 @@ if(isset($_POST['generate_bill'])){
     $stmt->close();
 }
 ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Inactive Tenants</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+    body { background-color: #f0f4f3; font-family: Arial, sans-serif; margin: 0; }
+    .main-content { margin-left:225px; padding:30px; min-height:100vh; }
+    .table { background-color: #fff; }
+    @media print {
+        .main-content { margin-left: 0; }
+        button, select, label, form { display: none !important; }
+    }
+</style>
+</head>
+<body>
+<?php include '../../sidebar.php'; ?>
 
-<div class="mb-3">
+<div class="main-content">
+    <h2 class="mb-4">Inactive Tenants - Billing History</h2>
+
+    <div class="mb-3">
     <form method="post" class="d-flex align-items-center gap-2">
         <input type="hidden" name="tab" value="inactive_tenant">
 
@@ -114,3 +135,7 @@ if(isset($_POST['generate_bill'])){
         </table>
     <?php endforeach; ?>
 <?php endif; ?>
+
+</div>
+</body>
+</html>

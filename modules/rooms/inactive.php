@@ -32,11 +32,11 @@ $totalActive = $activeCountResult->fetch_assoc()['totalActive'];
     <?php
 // fetch header image from DB
 $header = $conn->query("SELECT setting_value FROM settings WHERE setting_name='header_image'")->fetch_assoc();
-$header_pic = $header ? $header['setting_value'] : "uploads/default_header.png";
+$header_pic = $header ? BASE_PATH . '/' . $header['setting_value'] : BASE_PATH . "/uploads/default_header.png";
 
 // fetch profile image from DB
 $profile = $conn->query("SELECT setting_value FROM settings WHERE setting_name='profile_image'")->fetch_assoc();
-$profile_pic = $profile ? $profile['setting_value'] : "uploads/default_profile.png";
+$profile_pic = $profile ? BASE_PATH . '/' . $profile['setting_value'] : BASE_PATH . "/uploads/default_profile.png";
 ?>
 
 <div class="d-flex justify-content-between align-items-center mt-0">

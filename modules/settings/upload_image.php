@@ -82,6 +82,10 @@ try {
     $header_pic = 'uploads/default_header.png';
 }
 
+// Add BASE_PATH for display
+$profile_pic = BASE_PATH . '/' . $profile_pic;
+$header_pic = BASE_PATH . '/' . $header_pic;
+
 // Get flash messages
 $flash_message = Session::getMessage();
 ?>
