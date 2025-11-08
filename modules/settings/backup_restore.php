@@ -31,7 +31,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             unlink($backup_file); // delete temporary backup file
             exit;
         } else {
-            echo "<script>alert('Failed to create backup.'); window.history.back();</script>";
+            echo "<script src='https://cdn.jsdelivr.net/npm/sweetalert2@11'></script>";
+            echo "<script>
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Failed to create backup.',
+                    icon: 'error',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#d33'
+                }).then(() => {
+                    window.history.back();
+                });
+            </script>";
         }
 
     } elseif ($action === 'import') {
@@ -41,10 +52,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $db_name = "dorm_db";
             $command = "mysql --user=root --password= --host=localhost $db_name < $sql_file";
             system($command, $output);
-            echo "<script>alert('Database restored successfully!'); window.location.href='user.php?tab=backup';</script>";
+            echo "<script src='https://cdn.jsdelivr.net/npm/sweetalert2@11'></script>";
+            echo "<script>
+                Swal.fire({
+                    title: 'Success!',
+                    text: 'Database restored successfully!',
+                    icon: 'success',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#198754'
+                }).then(() => {
+                    window.location.href='user.php?tab=backup';
+                });
+            </script>";
             exit;
         } else {
-            echo "<script>alert('Please select a valid SQL file.'); window.history.back();</script>";
+            echo "<script src='https://cdn.jsdelivr.net/npm/sweetalert2@11'></script>";
+            echo "<script>
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Please select a valid SQL file.',
+                    icon: 'error',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#d33'
+                }).then(() => {
+                    window.history.back();
+                });
+            </script>";
         }
     }
 }

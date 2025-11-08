@@ -146,8 +146,14 @@ document.getElementById('sendReminderBtn').addEventListener('click', function() 
             statusHtml += '</div>';
             statusDiv.innerHTML = statusHtml;
 
-            // Show alert
-            alert("SMS Reminder sent successfully to " + (data.sent_to ? data.sent_to.length : 0) + " recipient(s)!");
+            // Show success alert with SweetAlert2
+            Swal.fire({
+                title: 'Success!',
+                text: "SMS Reminder sent successfully to " + (data.sent_to ? data.sent_to.length : 0) + " recipient(s)!",
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
 
             // Close modal after successful send
             const modal = bootstrap.Modal.getInstance(document.getElementById('reminderMessageModal'));
@@ -156,7 +162,13 @@ document.getElementById('sendReminderBtn').addEventListener('click', function() 
             }
         } else {
             statusDiv.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-circle"></i> <strong>Failed:</strong> ' + data.message + '</div>';
-            alert("Failed to send reminder: " + data.message);
+            Swal.fire({
+                title: 'Failed',
+                text: "Failed to send reminder: " + data.message,
+                icon: 'error',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#d33'
+            });
 
             // Re-enable button on failure
             btn.disabled = false;
@@ -165,7 +177,13 @@ document.getElementById('sendReminderBtn').addEventListener('click', function() 
     })
     .catch(err => {
         statusDiv.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-circle"></i> <strong>Error:</strong> ' + err + '</div>';
-        alert("Error sending reminder: " + err);
+        Swal.fire({
+            title: 'Error',
+            text: "Error sending reminder: " + err,
+            icon: 'error',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#d33'
+        });
 
         // Re-enable button
         btn.disabled = false;

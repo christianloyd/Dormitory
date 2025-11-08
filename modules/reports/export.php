@@ -33,6 +33,9 @@ if (session_status() === PHP_SESSION_NONE) {
     </button>
 </div>
 
+<!-- Load SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <!-- Load html2canvas -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
@@ -43,7 +46,13 @@ function exportSelectedReport() {
     let target = document.getElementById(selectedId);
 
     if (!target) {
-        alert("⚠ Selected report section not found on this page.");
+        Swal.fire({
+            title: 'Warning',
+            text: 'Selected report section not found on this page.',
+            icon: 'warning',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#f0ad4e'
+        });
         return;
     }
 
@@ -58,7 +67,13 @@ function exportSelectedReport() {
         link.click();
     }).catch(err => {
         console.error("Error exporting:", err);
-        alert("❌ Failed to export image.");
+        Swal.fire({
+            title: 'Error',
+            text: 'Failed to export image.',
+            icon: 'error',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#d33'
+        });
     });
 }
 </script>

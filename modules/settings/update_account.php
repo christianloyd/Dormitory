@@ -23,7 +23,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Verify current password
     if (!password_verify($current_password, $admin['password'])) {
-        echo "<script>alert('Current password is incorrect.'); window.history.back();</script>";
+        echo "<script src='https://cdn.jsdelivr.net/npm/sweetalert2@11'></script>";
+        echo "<script>
+            Swal.fire({
+                title: 'Error',
+                text: 'Current password is incorrect.',
+                icon: 'error',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#d33'
+            }).then(() => {
+                window.history.back();
+            });
+        </script>";
         exit();
     }
 
@@ -42,9 +53,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fixed_header = "uploads/header_admin.jpg"; // keep your header image path
     $conn->query("UPDATE settings SET setting_value='$fixed_header' WHERE setting_name='header_image'");
 
+    echo "<script src='https://cdn.jsdelivr.net/npm/sweetalert2@11'></script>";
     echo "<script>
-        alert('Credentials updated successfully! Header image is preserved. Please restart the Dormitory System and use the new username & password.');
-        window.location.href='logout.php';
+        Swal.fire({
+            title: 'Success!',
+            text: 'Credentials updated successfully! Header image is preserved. Please restart the Dormitory System and use the new username & password.',
+            icon: 'success',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#198754'
+        }).then(() => {
+            window.location.href='logout.php';
+        });
     </script>";
     exit();
 }

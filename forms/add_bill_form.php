@@ -126,6 +126,9 @@ if ($last_due_date) {
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <!-- jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
@@ -216,14 +219,33 @@ document.addEventListener("DOMContentLoaded", function() {
             dataType: 'json',
             success: function(response) {
                 if (response.success) {
-                    alert("Billing saved successfully!");
-                    window.location.href = "viewbill.php?tenant_id=" + response.tenant_id;
+                    Swal.fire({
+                        title: 'Success!',
+                        text: 'Billing saved successfully!',
+                        icon: 'success',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.href = "viewbill.php?tenant_id=" + response.tenant_id;
+                    });
                 } else {
-                    alert("Error: " + response.message);
+                    Swal.fire({
+                        title: 'Error',
+                        text: response.message,
+                        icon: 'error',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#d33'
+                    });
                 }
             },
             error: function(xhr, status, error) {
-                alert("An unexpected error occurred: " + xhr.responseText);
+                Swal.fire({
+                    title: 'Error',
+                    text: "An unexpected error occurred: " + xhr.responseText,
+                    icon: 'error',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#d33'
+                });
             }
         });
     });

@@ -21,7 +21,6 @@ $totalActive = $activeCountResult->fetch_assoc()['totalActive'];
 <head>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="../../css/new_room.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lobibox/dist/css/lobibox.min.css"/>
 </head>
 <body>
 <?php include '../../sidebar.php'; ?>

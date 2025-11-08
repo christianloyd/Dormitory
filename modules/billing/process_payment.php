@@ -119,7 +119,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header("Location: view.php?tenant_id=$tenant_id");
         exit;
     } else {
-        echo "<script>alert('Error updating payment.'); window.history.back();</script>";
+        echo "<script src='https://cdn.jsdelivr.net/npm/sweetalert2@11'></script>";
+        echo "<script>
+            Swal.fire({
+                title: 'Error',
+                text: 'Error updating payment.',
+                icon: 'error',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#d33'
+            }).then(() => {
+                window.history.back();
+            });
+        </script>";
     }
     $stmt->close();
 }
