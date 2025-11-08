@@ -34,7 +34,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 
     <!-- Logout button fixed at bottom -->
     <div class="mt-auto p-2">
-        <a href="<?= BASE_PATH ?>/logout.php" class="text-danger d-block">
+        <a href="<?= BASE_PATH ?>/auth/logout.php" class="text-danger d-block">
             <i class="fas fa-sign-out-alt"></i> Logout
         </a>
     </div>

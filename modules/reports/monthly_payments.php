@@ -88,7 +88,7 @@ table th, table td { vertical-align: middle; text-align:center; font-size:14px; 
 </style>
 </head>
 <body>
-<?php include '../../sidebar.php'; ?>
+<?php include '../../includes/sidebar.php'; ?>
 
 <div class="main-content">
     <!-- Header with Month/Year selector -->

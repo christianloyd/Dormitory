@@ -9,12 +9,12 @@
 require_once __DIR__ . '/config.php';
 
 // Load security helpers
-require_once __DIR__ . '/helpers/Session.php';
-require_once __DIR__ . '/helpers/CSRF.php';
-require_once __DIR__ . '/helpers/Database.php';
-require_once __DIR__ . '/helpers/FileUpload.php';
-require_once __DIR__ . '/helpers/RateLimiter.php';
-require_once __DIR__ . '/helpers/Validator.php';
+require_once __DIR__ . '/../helpers/Session.php';
+require_once __DIR__ . '/../helpers/CSRF.php';
+require_once __DIR__ . '/../helpers/Database.php';
+require_once __DIR__ . '/../helpers/FileUpload.php';
+require_once __DIR__ . '/../helpers/RateLimiter.php';
+require_once __DIR__ . '/../helpers/Validator.php';
 
 // Initialize secure session
 Session::init();

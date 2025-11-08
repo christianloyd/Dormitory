@@ -118,7 +118,7 @@ $total_pages = ceil($total_records / $limit);
     </style>
 </head>
 <body>
-    <?php include '../../sidebar.php'; ?>
+    <?php include '../../includes/sidebar.php'; ?>
 
     <div class="container-fluid">
         <div class="row">

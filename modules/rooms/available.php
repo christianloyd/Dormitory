@@ -97,7 +97,7 @@ tr:nth-child(even) {
 }
 </style>
 <body>
-    <?php include '../../sidebar.php'; ?>
+    <?php include '../../includes/sidebar.php'; ?>
 
 
 <div class="main-content">

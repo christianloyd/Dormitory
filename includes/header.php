@@ -8,7 +8,7 @@
  */
 
 if (!Session::isLoggedIn()) {
-    header('Location: login.php');
+    header('Location: ' . BASE_PATH . '/auth/login.php');
     exit;
 }
 ?>

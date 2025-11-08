@@ -25,7 +25,7 @@ require_once "../../includes/auth_check.php";
 </style>
 </head>
 <body>
-<?php include '../../sidebar.php'; ?>
+<?php include '../../includes/sidebar.php'; ?>
 
 <div class="main-content">
     <h2>Reports Hub</h2>

@@ -1,20 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dir /s /b \"c:\\xampp\\htdocs\\dorm_system\\helpers\" 2)",
-      "Bash(nul)",
-      "Bash(\"c:\\xampp\\mysql\\bin\\mysql.exe\":*)",
-      "Bash(git checkout:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)",
       "Bash(php -l:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nMerge branch ''claude/codebase-review-analysis-011CUtFvQyA3vZwF7PsnBP5J'' into main\n\nResolved merge conflicts:\n- modules/dashboard/index.php: Used modular auth_check.php approach\n- sidebar.php: Updated Dashboard link to use modular path /modules/dashboard/\n- .claude/settings.local.json: Merged permission sets from both branches\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(for file in *.php)",
-      "Bash(do if grep -q \"<!DOCTYPE html\" \"$file\")",
-      "Bash(then echo \"$file - STANDALONE\")",
-      "Bash(else echo \"$file - COMPONENT\")",
-      "Bash(fi:*)",
-      "Bash(done)"
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

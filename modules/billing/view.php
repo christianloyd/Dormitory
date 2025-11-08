@@ -139,7 +139,7 @@ $prev_credit = 0;
 </style>
 </head>
 <body class="bg-light">
-<?php include '../../sidebar.php'; ?>
+<?php include '../../includes/sidebar.php'; ?>
 
 <div class="main-content">
     <h2>Billing for <?php echo htmlspecialchars($tenant_name); ?> (Room <?php echo htmlspecialchars($tenant['room_number']); ?>)</h2>

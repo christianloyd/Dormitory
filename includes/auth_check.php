@@ -9,7 +9,7 @@
 
 // Load db.php if not already loaded (includes all helpers and session init)
 if (!defined('DB_LOADED')) {
-    require_once __DIR__ . '/../db.php';
+    require_once __DIR__ . '/../config/db.php';
     define('DB_LOADED', true);
 }
 

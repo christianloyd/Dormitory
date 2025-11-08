@@ -49,7 +49,7 @@ if(isset($_POST['generate_bill'])){
 </style>
 </head>
 <body>
-<?php include '../../sidebar.php'; ?>
+<?php include '../../includes/sidebar.php'; ?>
 
 <div class="main-content">
     <h2 class="mb-4">Inactive Tenants - Billing History</h2>

@@ -122,7 +122,7 @@ body, html {
 </style>
 </head>
 <body>
-<?php include '../../sidebar.php'; ?>
+<?php include '../../includes/sidebar.php'; ?>
 <div class="main-content">
 
 <div class="d-flex justify-content-between align-items-center mt-0">

@@ -56,7 +56,7 @@ $result = $conn->query($sql);
 </style>
 </head>
 <body>
-<?php include '../../sidebar.php'; ?>
+<?php include '../../includes/sidebar.php'; ?>
 
 <div class="main-content">
 <div style="padding: 20px; width: 100%; box-sizing: border-box;">

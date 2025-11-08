@@ -31,7 +31,7 @@ class Session {
             if (time() - $_SESSION['last_activity'] > self::$timeout) {
                 self::destroy();
                 $basePath = self::getBasePath();
-                header('Location: ' . $basePath . '/login.php?timeout=1');
+                header('Location: ' . $basePath . '/auth/login.php?timeout=1');
                 exit;
             }
         }
@@ -101,7 +101,7 @@ class Session {
     public static function requireAuth() {
         if (!self::isLoggedIn()) {
             $basePath = self::getBasePath();
-            header('Location: ' . $basePath . '/login.php');
+            header('Location: ' . $basePath . '/auth/login.php');
             exit;
         }
     }

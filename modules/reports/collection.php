@@ -92,7 +92,7 @@ h2 { text-align:center; margin-bottom:20px; }
 </style>
 </head>
 <body>
-<?php include '../../sidebar.php'; ?>
+<?php include '../../includes/sidebar.php'; ?>
 
 <div class="main-content">
 <div class="container">

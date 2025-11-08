@@ -28,9 +28,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['edit_tenant_id'])) {
     $date_started    = !empty($_POST['date_started']) ? $_POST['date_started'] : $tenant['date_started'];
 
     // validate contact numbers
-    if (!preg_match('/^09[0-9]{9}$/', $contact_number) || 
+    if (!preg_match('/^09[0-9]{9}$/', $contact_number) ||
         !preg_match('/^09[0-9]{9}$/', $guardian_contact)) {
-        $_SESSION['message'] = "Invalid Contact Number! Must start with 09 and be 11 digits.";
+        $_SESSION['swal_error'] = "Invalid Contact Number! Must start with 09 and be 11 digits.";
         header("Location: index.php");
         exit;
     }
@@ -42,9 +42,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['edit_tenant_id'])) {
     $stmt->bind_param("sissssssi", $tenant_name, $room_id, $deck_type, $address, $contact_number, $guardian_contact, $status, $date_started, $tenant_id);
 
     if ($stmt->execute()) {
-        $_SESSION['message'] = "Tenant '{$tenant_name}' has been updated successfully!";
+        $_SESSION['swal_success'] = "Tenant '{$tenant_name}' has been updated successfully!";
     } else {
-        $_SESSION['message'] = "Error updating tenant: " . $stmt->error;
+        $_SESSION['swal_error'] = "Error updating tenant: " . $stmt->error;
     }
 
     header("Location: index.php");
@@ -64,13 +64,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tenant_name'])) {
 
     // Validate contact numbers
     if (!preg_match('/^09[0-9]{9}$/', $contact_number)) {
-        $_SESSION['message'] = "Invalid Contact Number! It must start with 09 and be 11 digits.";
+        $_SESSION['swal_error'] = "Invalid Contact Number! It must start with 09 and be 11 digits.";
         header("Location: index.php");
         exit;
     }
 
     if (!preg_match('/^09[0-9]{9}$/', $guardian_contact)) {
-        $_SESSION['message'] = "Invalid Guardian Contact! It must start with 09 and be 11 digits.";
+        $_SESSION['swal_error'] = "Invalid Guardian Contact! It must start with 09 and be 11 digits.";
         header("Location: index.php");
         exit;
     }
@@ -115,11 +115,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tenant_name'])) {
         $updateRoom->bind_param("isi", $tenantCount, $status_room, $room_id);
         $updateRoom->execute();
 
-        $_SESSION['message'] = "Tenant '{$tenant_name}' has been added successfully!";
+        $_SESSION['swal_success'] = "Tenant '{$tenant_name}' has been added successfully!";
         header("Location: index.php");
         exit;
     } else {
-        $_SESSION['message'] = "Error: " . $stmt->error;
+        $_SESSION['swal_error'] = "Error: " . $stmt->error;
+        header("Location: index.php");
+        exit;
     }
 }
 ?>
@@ -132,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tenant_name'])) {
 <link rel="stylesheet" href="../../css/newtenant.css">
 </head>
 <body>
-<?php include '../../sidebar.php'; ?>
+<?php include '../../includes/sidebar.php'; ?>
 <div class="main-content">
 
 <?php
@@ -170,17 +172,6 @@ $profile_pic = $profile ? BASE_PATH . '/' . $profile['setting_value'] : BASE_PAT
 </div>
     <div style="clear: both;"></div> <!-- para mo-break ang float -->
 
-<?php if (isset($_SESSION['message'])): ?>
-    <div id="flash-message" style="padding:10px;background-color:rgba(90,125,124,0.9);color:#fff;border:1px solid #496766;border-radius:6px;margin-bottom:15px;font-weight:bold;text-align:center;">
-        <?= $_SESSION['message']; unset($_SESSION['message']); ?>
-    </div>
-    <script>
-        setTimeout(function() {
-            var msg = document.getElementById("flash-message");
-            if (msg) { msg.style.transition = "opacity 1s"; msg.style.opacity = "0"; setTimeout(() => msg.remove(), 1000); }
-        }, 3000);
-    </script>
-<?php endif; ?>
 
 <?php
 $activeQuery = $conn->query("SELECT COUNT(*) as active_count FROM tenants WHERE status='Active'");
@@ -328,7 +319,21 @@ $inactiveCount = $inactiveQuery->fetch_assoc()['inactive_count'];
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="<?= BASE_PATH ?>/js/sweetalert-helpers.js"></script>
 <script>
+
+// Display SweetAlert messages from PHP session
+<?php if (isset($_SESSION['swal_success'])): ?>
+    AlertHelper.success('Success', '<?= addslashes($_SESSION['swal_success']) ?>');
+    <?php unset($_SESSION['swal_success']); ?>
+<?php endif; ?>
+
+<?php if (isset($_SESSION['swal_error'])): ?>
+    AlertHelper.error('Error', '<?= addslashes($_SESSION['swal_error']) ?>');
+    <?php unset($_SESSION['swal_error']); ?>
+<?php endif; ?>
+
+
 
 function openModal() { document.getElementById('tenantModal').style.display = 'flex'; }
 function closeModal() { document.getElementById('tenantModal').style.display = 'none'; }

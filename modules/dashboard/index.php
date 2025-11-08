@@ -304,7 +304,7 @@ while ($row = $resStatus->fetch_assoc()) {
 </style>
 </head>
 <body>
-<?php include '../../sidebar.php'; ?>
+<?php include '../../includes/sidebar.php'; ?>
 <div class="main-content">
 <div class="container-fluid">
 

@@ -36,7 +36,7 @@ if ($last_due_date) {
 <div class="modal fade" id="addBillModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
-      <form method="post" action="save_bill.php">
+      <form method="post" action="save.php">
         <div class="modal-header">
           <h5 class="modal-title">
             Add Bill for <?php echo htmlspecialchars($tenant['tenant_name']); ?>
@@ -205,46 +205,72 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 
-    // --- Confirmation + AJAX Save ---
+    // --- SweetAlert Confirmation + AJAX Save ---
     $('#addBillModal form').on('submit', function(e) {
         e.preventDefault(); // prevent default form submit
 
-        if (!confirm("Are you sure you want to save this billing?")) return;
-
         let form = $(this);
-        $.ajax({
-            url: form.attr('action'),
-            type: 'POST',
-            data: form.serialize(),
-            dataType: 'json',
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({
-                        title: 'Success!',
-                        text: 'Billing saved successfully!',
-                        icon: 'success',
-                        timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => {
-                        window.location.href = "viewbill.php?tenant_id=" + response.tenant_id;
-                    });
-                } else {
-                    Swal.fire({
-                        title: 'Error',
-                        text: response.message,
-                        icon: 'error',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#d33'
-                    });
-                }
-            },
-            error: function(xhr, status, error) {
+
+        // SweetAlert confirmation
+        Swal.fire({
+            title: 'Confirm Save',
+            text: 'Are you sure you want to save this billing?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, save it',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#198754',
+            cancelButtonColor: '#6c757d'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Show loading indicator
                 Swal.fire({
-                    title: 'Error',
-                    text: "An unexpected error occurred: " + xhr.responseText,
-                    icon: 'error',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#d33'
+                    title: 'Saving...',
+                    text: 'Please wait',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                // Submit via AJAX
+                $.ajax({
+                    url: form.attr('action'),
+                    type: 'POST',
+                    data: form.serialize(),
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                title: 'Success!',
+                                text: 'Billing saved successfully!',
+                                icon: 'success',
+                                timer: 1500,
+                                showConfirmButton: false
+                            }).then(() => {
+                                window.location.href = "view.php?tenant_id=" + response.tenant_id;
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error',
+                                text: response.message,
+                                icon: 'error',
+                                confirmButtonText: 'OK',
+                                confirmButtonColor: '#d33'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        Swal.fire({
+                            title: 'Error',
+                            text: "An unexpected error occurred: " + xhr.responseText,
+                            icon: 'error',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#d33'
+                        });
+                    }
                 });
             }
         });

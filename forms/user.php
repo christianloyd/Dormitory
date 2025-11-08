@@ -66,7 +66,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     </style>
 </head>
 <body>
-<?php include 'sidebar.php'; ?>
+<?php include '../includes/sidebar.php'; ?>
 
 <div class="main-content">
     <div class="settings-container">

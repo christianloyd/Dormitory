@@ -56,7 +56,7 @@ while ($t = $tenants->fetch_assoc()) {
     <link rel="stylesheet" href="../../css/billing_calendar.css">
 </head>
 <body>
-<?php include '../../sidebar.php'; ?>
+<?php include '../../includes/sidebar.php'; ?>
 
 <div class="main-content">
     <h2>Billing Calendar</h2>

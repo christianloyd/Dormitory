@@ -110,7 +110,7 @@ $totalOccupied = $result->fetch_assoc()['totalOccupied'];
     </style>
 </head>
 <body>
-    <?php include '../../sidebar.php'; ?>
+    <?php include '../../includes/sidebar.php'; ?>
 
     <div class="main-content">
         <h2>Occupied Rooms</h2>

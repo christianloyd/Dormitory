@@ -95,7 +95,7 @@ $inactiveResult = $conn->query("SELECT * FROM rooms WHERE record_status='Inactiv
     <link rel="stylesheet" href="../../css/new_room.css">
 </head>
 <body>
-<?php include '../../sidebar.php'; ?>
+<?php include '../../includes/sidebar.php'; ?>
 
 <div class="main-content">
     <div class="container-fluid">
