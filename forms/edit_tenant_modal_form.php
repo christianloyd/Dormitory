@@ -2,7 +2,7 @@
 <div class="modal fade" id="editTenantModal" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
-      <form method="POST" action="tenants.php" enctype="multipart/form-data">
+      <form method="POST" action="index.php" enctype="multipart/form-data">
         <input type="hidden" name="edit_tenant_id" id="editTenantId">
 
         <!-- Hidden fields to prevent errors -->
