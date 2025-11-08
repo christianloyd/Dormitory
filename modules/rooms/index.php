@@ -92,8 +92,7 @@ $inactiveResult = $conn->query("SELECT * FROM rooms WHERE record_status='Inactiv
 <html>
 <head>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="../../css/new_room.css">   
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lobibox/dist/css/lobibox.min.css"/>
+    <link rel="stylesheet" href="../../css/new_room.css">
 </head>
 <body>
 <?php include '../../sidebar.php'; ?>
@@ -248,8 +247,6 @@ while ($row = mysqli_fetch_assoc($roomResult)):
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="js/rooms.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://cdn.jsdelivr.net/npm/lobibox/dist/js/lobibox.min.js"></script>
 
 <script>
 document.querySelectorAll('.btn-delete').forEach(btn => {
@@ -295,7 +292,7 @@ document.querySelectorAll('.btn-delete').forEach(btn => {
 });
 
 // ==============================
-// SAVE ROOM CONFIRMATION USING LOBIBOX
+// SAVE ROOM CONFIRMATION USING SWEETALERT2
 // When user clicks "Save Room", this shows a confirmation prompt
 // ==============================
 
@@ -306,22 +303,30 @@ function confirmSaveRoom(callback) {
 
     // Show warning if no room number is entered
     if (!roomNumber) {
-        Lobibox.notify('warning', {
-            size: 'mini',
-            msg: 'Please enter room number before saving.'
+        Swal.fire({
+            title: 'Warning',
+            text: 'Please enter room number before saving.',
+            icon: 'warning',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#f0ad4e'
         });
         return;
     }
 
-    // Show Lobibox confirm dialog
-    Lobibox.confirm({
+    // Show SweetAlert2 confirm dialog
+    Swal.fire({
         title: 'Confirm Save',
-        msg: `Are you sure you want to save room "${roomNumber}"?`,
-        callback: function($this, type) {
-            if(type === 'yes' && typeof callback === 'function') {
-                // If user clicks "Yes", submit the form
-                callback();
-            }
+        text: `Are you sure you want to save room "${roomNumber}"?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, save it',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#198754',
+        cancelButtonColor: '#6c757d'
+    }).then((result) => {
+        if(result.isConfirmed && typeof callback === 'function') {
+            // If user clicks "Yes", submit the form
+            callback();
         }
     });
 }

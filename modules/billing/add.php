@@ -29,6 +29,9 @@ if ($last_due_date) {
 }
 ?>
 
+<!-- SweetAlert2 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <!-- Add Bill Modal -->
 <div class="modal fade" id="addBillModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
@@ -182,25 +185,74 @@ document.addEventListener("DOMContentLoaded", function() {
 // Step 11–14: Confirmation + AJAX
 document.getElementById('addBillForm').addEventListener('submit', function(e){
     e.preventDefault();
-    if(confirm("Are you sure you want to save this billing?")) {
-        let formData = new FormData(this);
-        fetch('save.php', { method:'POST', body:formData })
-        .then(res => res.json())
-        .then(data => {
-            if(data.success){
-                alert("Billing added successfully!");
-                let sendReminder = confirm(`Do you want to send a payment reminder to Tenant ${data.tenant_name} and Guardian ${data.guardian_name}?`);
-                if(sendReminder){
-                    alert("Reminder sent!"); // implement actual reminder function later
+
+    Swal.fire({
+        title: 'Confirm',
+        text: 'Are you sure you want to save this billing?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, save it',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#198754',
+        cancelButtonColor: '#6c757d'
+    }).then((result) => {
+        if(result.isConfirmed) {
+            let formData = new FormData(this);
+            fetch('save.php', { method:'POST', body:formData })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success){
+                    Swal.fire({
+                        title: 'Success!',
+                        text: 'Billing added successfully!',
+                        icon: 'success',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#198754'
+                    }).then(() => {
+                        Swal.fire({
+                            title: 'Send Reminder?',
+                            text: `Do you want to send a payment reminder to Tenant ${data.tenant_name} and Guardian ${data.guardian_name}?`,
+                            icon: 'question',
+                            showCancelButton: true,
+                            confirmButtonText: 'Yes, send reminder',
+                            cancelButtonText: 'No',
+                            confirmButtonColor: '#198754',
+                            cancelButtonColor: '#6c757d'
+                        }).then((reminderResult) => {
+                            if(reminderResult.isConfirmed){
+                                Swal.fire({
+                                    title: 'Sent!',
+                                    text: 'Reminder sent!',
+                                    icon: 'success',
+                                    timer: 1500,
+                                    showConfirmButton: false
+                                });
+                            }
+                            const modalEl = document.getElementById('addBillModal');
+                            const modal = bootstrap.Modal.getInstance(modalEl);
+                            modal.hide();
+                            window.location.href = `view.php?tenant_id=${data.tenant_id}`;
+                        });
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error',
+                        text: data.message,
+                        icon: 'error',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#d33'
+                    });
                 }
-                const modalEl = document.getElementById('addBillModal');
-                const modal = bootstrap.Modal.getInstance(modalEl);
-                modal.hide();
-                window.location.href = `view.php?tenant_id=${data.tenant_id}`;
-            } else {
-                alert("Error: " + data.message);
-            }
-        }).catch(err => alert("Error: " + err));
-    }
+            }).catch(err => {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Error: ' + err,
+                    icon: 'error',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#d33'
+                });
+            });
+        }
+    }.bind(this));
 });
 </script>
