@@ -54,15 +54,20 @@ if (!defined('SMS_SENDER')) {
 }
 
 // Include SMS Helper
-require_once __DIR__ . '/helpers/sms_helper.php';
+require_once __DIR__ . '/../helpers/sms_helper.php';
 
 // Define base path for navigation (web root path)
-// Automatically detect the base path for module navigation
-$script_name = dirname($_SERVER['SCRIPT_NAME']);
-$base_path = str_replace('\\', '/', $script_name);
-// Remove /modules/* from path if present
-if (strpos($base_path, '/modules/') !== false) {
-    $base_path = substr($base_path, 0, strpos($base_path, '/modules'));
+// Compute from document root so it stays consistent across directories
+$projectRoot = str_replace('\\', '/', realpath(__DIR__ . '/..'));
+$documentRoot = str_replace('\\', '/', realpath($_SERVER['DOCUMENT_ROOT']));
+
+if ($documentRoot !== false && strpos($projectRoot, $documentRoot) === 0) {
+    $base_path = substr($projectRoot, strlen($documentRoot));
+} else {
+    // Fallback to script-based detection
+    $base_path = dirname($_SERVER['SCRIPT_NAME']);
 }
+
+$base_path = '/' . ltrim($base_path, '/');
 define('BASE_PATH', rtrim($base_path, '/'));
 ?>

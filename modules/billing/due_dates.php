@@ -272,7 +272,7 @@ if (isset($_GET['date'])) {
 
     <!-- Back Button -->
     <div class="back-btn">
-        <a href="billing.php" class="btn btn-secondary">Back to Calendar</a>
+        <a href="<?= BASE_PATH ?>/modules/billing/" class="btn btn-secondary">Back to Calendar</a>
     </div>
 </div>
 <script>

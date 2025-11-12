@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../../includes/auth_check.php';
+require_once __DIR__ . '/../../helpers/BillingLock.php';
 
 // Security check
 }
@@ -22,6 +23,12 @@ $payment_amount = floatval($_POST['payment_amount']);
 $payment_method = trim($_POST['payment_method']);
 $due_date = $_POST['due_date'];
 $interest = isset($_POST['interest']) ? floatval($_POST['interest']) : 0; // ✅ NEW FIELD
+
+if (isBillingRecordLocked($conn, $bill_id)) {
+    Session::setMessage('This billing record is locked and cannot be edited.', 'danger');
+    header("Location: view.php?tenant_id=" . $tenant_id);
+    exit();
+}
 
 // ✅ Step 1: Get existing bill for carry-over values
 $sql = "SELECT previous_balance, previous_credit FROM billing WHERE bill_id = ?";

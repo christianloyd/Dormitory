@@ -4,6 +4,7 @@
  * Path: /modules/billing/view.php
  */
 require_once "../../includes/auth_check.php";
+require_once __DIR__ . '/../../helpers/BillingLock.php';
 
 // Function to get room number
 function getRoomNumber($conn, $room_id) {
@@ -220,6 +221,8 @@ $prev_credit = 0;
 
     $current_prev_balance = $balance;
     $current_prev_credit = $credit;
+
+    $is_bill_locked = isBillingLockedByDate($row['due_date']);
 ?>
 
 <div class="billing-box bill-item" data-index="<?php echo $index; ?>" style="display:none;">
@@ -229,7 +232,13 @@ $prev_credit = 0;
             <td><?php echo htmlspecialchars(getRoomNumber($conn, $row['room_id'])); ?></td>
         </tr>
         <tr>
-            <td class="label">Due Date:</td><td><?php echo htmlspecialchars($row['due_date']); ?></td>
+            <td class="label">Due Date:</td>
+            <td>
+                <?php echo htmlspecialchars($row['due_date']); ?>
+                <?php if ($is_bill_locked): ?>
+                    <span class="badge bg-secondary ms-2">Locked</span>
+                <?php endif; ?>
+            </td>
             <td class="label">Payment Date:</td><td><?php echo htmlspecialchars($row['payment_date']); ?></td>
         </tr>
         <tr>
@@ -283,16 +292,24 @@ $prev_credit = 0;
     </table>
 
     <div class="actions mt-2 text-end">
-        <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#paymentModal<?php echo $row['bill_id']; ?>">Payment</button>
-        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editBillModal<?php echo $row['bill_id']; ?>">Edit</button>
-        <a href="delete.php?bill_id=<?php echo $row['bill_id']; ?>" class="delete-btn btn btn-sm btn-danger">Delete</a>
+        <?php if ($is_bill_locked): ?>
+            <button class="btn btn-sm btn-secondary" disabled title="Locked records cannot accept new payments">Payment</button>
+            <button class="btn btn-sm btn-secondary" disabled title="Locked records cannot be edited">Edit</button>
+            <button class="btn btn-sm btn-secondary" disabled title="Locked records cannot be deleted">Delete</button>
+        <?php else: ?>
+            <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#paymentModal<?php echo $row['bill_id']; ?>">Payment</button>
+            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editBillModal<?php echo $row['bill_id']; ?>">Edit</button>
+            <a href="delete.php?bill_id=<?php echo $row['bill_id']; ?>" class="delete-btn btn btn-sm btn-danger">Delete</a>
+        <?php endif; ?>
     </div>
 
 <?php 
     $prev_balance = $current_prev_balance;
     $prev_credit = $current_prev_credit;
-    include '../../forms/edit_bill_form.php';
-    include '../../forms/payment_modal.php';
+    if (!$is_bill_locked) {
+        include '../../forms/edit_bill_form.php';
+        include '../../forms/payment_modal.php';
+    }
 ?>
 </div>
 <?php endforeach; ?>
@@ -402,7 +419,13 @@ document.querySelectorAll('.delete-btn').forEach(btn => {
                 fetch(url)
                     .then(res => res.text())
                     .then(data => {
-                        if (data.trim() === "success") {
+                        const result = data.trim();
+                        if (result === "locked") {
+                            Swal.fire('Locked', 'This billing record is locked and cannot be deleted.', 'info');
+                            return;
+                        }
+
+                        if (result === "success") {
                             Swal.fire({
                                 title: 'Deleted!',
                                 text: `${tenantName}'s billing has been successfully removed.`,

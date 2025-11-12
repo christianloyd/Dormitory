@@ -5,6 +5,7 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
 require_once '../../includes/auth_check.php';
+require_once __DIR__ . '/../../helpers/BillingLock.php';
 
 try {
     // --- Input handling ---
@@ -12,6 +13,10 @@ try {
     $room_id = intval($_POST['room_id']);
     $base_rent = floatval($_POST['base_rent']);
     $due_date = $_POST['due_date'];
+
+    if (isBillingLockedByDate($due_date)) {
+        throw new Exception("This billing month is locked and cannot accept new records.");
+    }
 
     // --- Utility fees & amounts ---
     $utility_fees = $_POST['utility_fee'] ?? [];

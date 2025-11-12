@@ -6,7 +6,7 @@ error_reporting(E_ALL);
 // Clear accidental output
 ob_start();
 
-include '../../db.php';
+include __DIR__ . '/../../config/db.php';
 
 try {
     // --- Get JSON POST data ---
@@ -69,7 +69,7 @@ try {
         $message .= "Room: {$tenant['room_number']}\n";
         $message .= "Due: {$tenant['due_date']}\n\n";
         $message .= "Charges:\n";
-        $message .= "- Rent: PHP " . number_format($tenant['base_rent'],2) . "\n";
+        $message .= "- Base Rent: PHP " . number_format($tenant['base_rent'],2) . "\n";
 
         if ($tenant['interest'] > 0) {
             $message .= "- Interest: PHP " . number_format($tenant['interest'],2) . "\n";
@@ -93,7 +93,8 @@ try {
         $message .= "Hi {$tenant['tenant_name']}!\n";
         $message .= "Room: {$tenant['room_number']}\n";
         $message .= "Due: {$tenant['due_date']}\n";
-        $message .= "Amount: PHP " . number_format($total_amount,2) . "\n\n";
+        $message .= "Base Rent: PHP " . number_format($tenant['base_rent'],2) . "\n";
+        $message .= "Amount Due: PHP " . number_format($total_amount,2) . "\n\n";
         $message .= "Pay within 3 days.\nThank you!";
     }
 

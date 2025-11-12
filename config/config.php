@@ -41,7 +41,7 @@ function loadEnv($filePath = '.env') {
 }
 
 // Load environment variables
-loadEnv(__DIR__ . '/.env');
+loadEnv(dirname(__DIR__) . '/.env');
 
 /**
  * Helper function to get environment variable

@@ -14,7 +14,7 @@ if (isset($_GET['timeout']) && $_GET['timeout'] == 1) {
 
 // Redirect if already logged in
 if (Session::isLoggedIn()) {
-    header('Location: modules/dashboard/');
+    header('Location: ' . BASE_PATH . '/modules/dashboard/');
     exit;
 }
 
@@ -25,6 +25,11 @@ try {
     $login_bg = $bg_row['setting_value'] ?? 'assets/login-bg.jpg';
 } catch (Exception $e) {
     $login_bg = 'assets/login-bg.jpg';
+}
+
+// Normalize background path
+if (!empty($login_bg) && !preg_match('/^(https?:)?\/\//', $login_bg) && strpos($login_bg, 'data:') !== 0) {
+    $login_bg = BASE_PATH . '/' . ltrim($login_bg, '/');
 }
 
 // Handle login form submission
@@ -64,7 +69,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // Keep admin_username for compatibility with existing code (user.php)
             $_SESSION['admin_username'] = $user['username'];
 
-            header('Location: modules/dashboard/');
+            header('Location: ' . BASE_PATH . '/modules/dashboard/');
             exit;
         } else {
             // Failed login - record attempt

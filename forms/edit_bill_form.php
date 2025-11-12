@@ -2,7 +2,7 @@
 <div class="modal fade" id="editBillModal<?php echo $row['bill_id']; ?>" tabindex="-1">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
-      <form method="post" action="update_bill.php">
+      <form method="post" action="<?= BASE_PATH ?>/modules/billing/update.php">
         <div class="modal-header">
           <h5 class="modal-title">Edit Bill — <?php echo htmlspecialchars($tenant['tenant_name']); ?></h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

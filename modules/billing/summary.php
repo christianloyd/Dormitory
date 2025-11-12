@@ -3,7 +3,7 @@ session_start();
 require_once '../../includes/auth_check.php';
 
 // Check if admin is logged in
-}
+
 
 date_default_timezone_set('Asia/Manila');
 

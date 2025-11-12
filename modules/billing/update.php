@@ -4,6 +4,7 @@
  * Path: /modules/billing/update.php
  */
 require_once "../../includes/auth_check.php";
+require_once __DIR__ . '/../../helpers/BillingLock.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') die("Invalid access.");
 
@@ -46,6 +47,12 @@ $sql = "UPDATE billing SET
         payment_amount = ?, 
         payment_method = ?
     WHERE bill_id = ?";
+
+if (isBillingRecordLocked($conn, $bill_id)) {
+    Session::setMessage('This billing record is locked and cannot be edited.', 'danger');
+    header("Location: view.php?tenant_id=" . $tenant_id);
+    exit();
+}
 
 $stmt = $conn->prepare($sql);
 $stmt->bind_param(

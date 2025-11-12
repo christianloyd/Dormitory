@@ -6,7 +6,7 @@ error_reporting(E_ALL);
 // Clear accidental output
 ob_start();
 
-include '../../db.php';
+include __DIR__ . '/../../config/db.php';
 
 try {
     // --- Get JSON POST data ---
@@ -63,6 +63,8 @@ try {
         $message .= "Paid: PHP " . number_format($payment['payment_amount'], 2) . "\n";
         $message .= "Method: {$payment['payment_method']}\n";
         $message .= "Status: {$payment['status']}\n";
+        $message .= "Base Rent: PHP " . number_format($payment['base_rent'], 2) . "\n";
+        $message .= "Total Bill: PHP " . number_format($payment['total_amount'], 2) . "\n";
 
         if ($payment['status'] === 'Partial') {
             $message .= "\nBalance: PHP " . number_format($remaining_balance, 2) . "\n";
@@ -80,10 +82,13 @@ try {
         $message .= "Room: {$payment['room_number']}\n";
         $message .= "Paid: PHP " . number_format($payment['payment_amount'], 2) . "\n";
         $message .= "Method: {$payment['payment_method']}\n";
+        $message .= "Base Rent: PHP " . number_format($payment['base_rent'], 2) . "\n";
 
         if ($payment['status'] === 'Partial') {
             $message .= "Balance: PHP " . number_format($remaining_balance, 2) . "\n";
+            $message .= "Total Bill: PHP " . number_format($payment['total_amount'], 2) . "\n";
         } else {
+            $message .= "Total Bill: PHP " . number_format($payment['total_amount'], 2) . "\n";
             $message .= "Status: Settled\n";
         }
 
@@ -125,7 +130,7 @@ try {
     }
 
     // --- Insert notification into database ---
-    $notifMessage = "Payment confirmation sent for Room {$payment['room_number']}. Amount: ₱" . number_format($payment['payment_amount'], 2);
+    $notifMessage = "Payment confirmation sent for Room {$payment['room_number']}. Paid: ₱" . number_format($payment['payment_amount'], 2) . ", Total Bill: ₱" . number_format($payment['total_amount'], 2);
     $type = "confirmation";
 
     $stmtNotif = $conn->prepare("

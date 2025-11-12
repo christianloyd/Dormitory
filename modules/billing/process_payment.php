@@ -4,6 +4,7 @@
  * Path: /modules/billing/process_payment.php
  */
 require_once '../../includes/auth_check.php';
+require_once __DIR__ . '/../../helpers/BillingLock.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $bill_id = intval($_POST['bill_id']);
@@ -12,6 +13,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $payment_method = $_POST['payment_method'];
     $payment_date = date('Y-m-d H:i:s');
     $total_amount = floatval(str_replace(',', '', $_POST['total_amount']));
+
+    if (isBillingRecordLocked($conn, $bill_id)) {
+        Session::setMessage('This billing record is locked and cannot accept new payments.', 'danger');
+        header("Location: view.php?tenant_id=$tenant_id");
+        exit;
+    }
 
     // Determine status
     if ($payment_amount >= $total_amount) {

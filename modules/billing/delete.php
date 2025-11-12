@@ -1,8 +1,14 @@
 <?php
 require_once '../../includes/auth_check.php';
+require_once __DIR__ . '/../../helpers/BillingLock.php';
 
 if (isset($_GET['bill_id'])) {
     $bill_id = intval($_GET['bill_id']);
+
+    if (isBillingRecordLocked($conn, $bill_id)) {
+        echo "locked";
+        exit;
+    }
 
     // Delete the bill record
     $sql = "DELETE FROM billing WHERE bill_id = ?";
