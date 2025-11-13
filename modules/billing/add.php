@@ -197,7 +197,8 @@ document.getElementById('addBillForm').addEventListener('submit', function(e){
         cancelButtonColor: '#6c757d'
     }).then((result) => {
         if(result.isConfirmed) {
-            let formData = new FormData(this);
+            const form = this;
+            let formData = new FormData(form);
             fetch('save.php', { method:'POST', body:formData })
             .then(res => res.json())
             .then(data => {
@@ -253,6 +254,6 @@ document.getElementById('addBillForm').addEventListener('submit', function(e){
                 });
             });
         }
-    }.bind(this));
+    });
 });
 </script>

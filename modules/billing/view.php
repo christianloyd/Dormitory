@@ -5,6 +5,7 @@
  */
 require_once "../../includes/auth_check.php";
 require_once __DIR__ . '/../../helpers/BillingLock.php';
+require_once __DIR__ . '/../../helpers/BillingItems.php';
 
 // Function to get room number
 function getRoomNumber($conn, $room_id) {
@@ -35,7 +36,7 @@ $stmt->close();
 if (!$tenant) die("Tenant not found.");
 
 // Billing history (ascending)
-$bill_sql = "SELECT b.*, t.tenant_name 
+$bill_sql = "SELECT b.*, t.tenant_name
              FROM billing b
              JOIN tenants t ON b.tenant_id = t.tenant_id
              WHERE b.tenant_id = ?
@@ -53,6 +54,14 @@ $showReminderPrompt = false;
 $tenant_name = $tenant['tenant_name'];
 $guardian_name = $tenant['guardian_name'] ?? '';
 
+$expectedReminderRecipients = 0;
+if (!empty($tenant['contact_number'])) {
+    $expectedReminderRecipients++;
+}
+if (!empty($tenant['guardian_contact'])) {
+    $expectedReminderRecipients++;
+}
+
 // Check if there are pending bills
 $hasPendingBills = false;
 $oldestPendingBillDate = null;
@@ -68,25 +77,61 @@ foreach ($bill_history as $bill) {
 // Only show reminder prompt if:
 // 1. There are pending bills
 // 2. AND no reminder SMS sent for this tenant for the current pending bill period
-if ($hasPendingBills && $oldestPendingBillDate) {
-    // Check if reminder SMS already sent for this bill period
-    // We check if any reminder (containing "Payment Reminder") was sent after the bill was created
-    $checkSmsStmt = $conn->prepare("
-        SELECT COUNT(*) as reminder_count
-        FROM sms_logs
-        WHERE tenant_id = ?
-        AND message LIKE '%Payment Reminder%'
-        AND status = 'sent'
-        AND DATE(date_sent) >= DATE(?)
-    ");
+if ($hasPendingBills && $oldestPendingBillDate && $expectedReminderRecipients > 0) {
+    $billIdForPending = null;
+    foreach ($bill_history as $bill) {
+        if ($bill['status'] === 'Pending') {
+            $billIdForPending = $bill['bill_id'];
+            break;
+        }
+    }
 
-    $checkSmsStmt->bind_param("is", $tenant_id, $oldestPendingBillDate);
-    $checkSmsStmt->execute();
-    $smsCheck = $checkSmsStmt->get_result()->fetch_assoc();
-    $checkSmsStmt->close();
+    if ($billIdForPending) {
+        $pendingBillIndex = array_search($billIdForPending, array_column($bill_history, 'bill_id'));
+        $roomNumberPending = null;
+        $dueDatePending = null;
 
-    // Show prompt only if no reminder sent yet
-    $showReminderPrompt = ($smsCheck['reminder_count'] == 0);
+        if ($pendingBillIndex !== false && isset($bill_history[$pendingBillIndex])) {
+            $roomNumberPending = getRoomNumber($conn, $bill_history[$pendingBillIndex]['room_id']);
+            $dueDatePending = $bill_history[$pendingBillIndex]['due_date'];
+        }
+
+        if ($roomNumberPending && $dueDatePending) {
+        // Check notifications for reminder already created for this bill
+        $notifStmt = $conn->prepare("
+            SELECT COUNT(*) AS reminder_count
+            FROM notifications
+            WHERE tenant_id = ?
+              AND type = 'Reminder'
+              AND message LIKE CONCAT('%Room ', ?, '%')
+              AND message LIKE CONCAT('%due on ', ?, '%')
+        ");
+        $notifStmt->bind_param("iss", $tenant_id, $roomNumberPending, $dueDatePending);
+        $notifStmt->execute();
+        $notifResult = $notifStmt->get_result()->fetch_assoc();
+        $notifStmt->close();
+
+        $reminderAlreadyLogged = ($notifResult['reminder_count'] ?? 0) > 0;
+
+        // Check SMS logs for sent reminders to contacts for this bill
+        $smsStmt = $conn->prepare("
+            SELECT COUNT(DISTINCT contact_number) AS sent_contacts
+            FROM sms_logs
+            WHERE tenant_id = ?
+              AND message LIKE '%Payment Reminder%'
+              AND status = 'sent'
+              AND DATE(date_sent) >= DATE(?)
+        ");
+        $smsStmt->bind_param("is", $tenant_id, $dueDatePending);
+        $smsStmt->execute();
+        $smsResult = $smsStmt->get_result()->fetch_assoc();
+        $smsStmt->close();
+
+        $contactsCovered = (int)($smsResult['sent_contacts'] ?? 0);
+
+        $showReminderPrompt = !$reminderAlreadyLogged || ($contactsCovered < $expectedReminderRecipients);
+        }
+    }
 }
 
 // Determine if payment confirmation prompt should show
@@ -169,19 +214,14 @@ $prev_credit = 0;
 
 <?php foreach ($bill_history as $index => $row): 
 
-    // Utility Fees
-    $utilityFees = json_decode($row['utility_fee'], true);
-    if (!is_array($utilityFees)) $utilityFees = [$utilityFees ?? 0];
-    $utilityAmounts = json_decode($row['utility_amount'], true);
-    if (!is_array($utilityAmounts)) $utilityAmounts = [$utilityAmounts ?? 0];
-    $utilityAmounts = array_pad($utilityAmounts, count($utilityFees), 0);
+    $utilityItems = getBillingUtilityItems($conn, $row['bill_id']);
+    $addItems = getBillingAdditionalItems($conn, $row['bill_id']);
 
-    // Additional Charges
-    $addCharges = json_decode($row['add_charges'], true);
-    if (!is_array($addCharges)) $addCharges = [$addCharges ?? 0];
-    $addAmounts = json_decode($row['add_amount'], true);
-    if (!is_array($addAmounts)) $addAmounts = [$addAmounts ?? 0];
-    $addAmounts = array_pad($addAmounts, count($addCharges), 0);
+    $utilityFees = array_column($utilityItems, 'label');
+    $utilityAmounts = array_column($utilityItems, 'amount');
+
+    $addCharges = array_column($addItems, 'label');
+    $addAmounts = array_column($addItems, 'amount');
 
     // Base Rent
     $room_id_for_bill = $row['room_id'];
@@ -193,8 +233,8 @@ $prev_credit = 0;
     $base_rent_for_bill = floatval($room['price']);
 
     // Totals
-    $total_utility = array_sum($utilityAmounts);
-    $total_add = array_sum($addAmounts);
+    $total_utility = sumBillingItems($utilityItems);
+    $total_add = sumBillingItems($addItems);
     $total = $base_rent_for_bill + $total_utility + $total_add + floatval($prev_balance) + floatval($row['interest']);
     $payment = floatval($row['payment_amount']);
     $balance = 0; 
@@ -246,6 +286,14 @@ $prev_credit = 0;
             <td class="label">Interest:</td><td>₱<?php echo number_format($row['interest'],2); ?></td>
         </tr>
         <!-- Utility Fees -->
+        <?php if(empty($utilityFees)): ?>
+        <tr>
+            <td class="label">Utility Fee:</td>
+            <td>-</td>
+            <td class="label">Utility Amount:</td>
+            <td>₱0.00</td>
+        </tr>
+        <?php else: ?>
         <?php foreach ($utilityFees as $key => $fee): ?>
         <tr>
             <?php if($key==0): ?>
@@ -259,7 +307,16 @@ $prev_credit = 0;
             <?php endif; ?>
         </tr>
         <?php endforeach; ?>
+        <?php endif; ?>
         <!-- Additional Charges -->
+        <?php if(empty($addCharges)): ?>
+        <tr>
+            <td class="label">Additional Charges:</td>
+            <td>-</td>
+            <td class="label">Additional Amount:</td>
+            <td>₱0.00</td>
+        </tr>
+        <?php else: ?>
         <?php foreach ($addCharges as $key => $charge): ?>
         <tr>
             <?php if($key==0): ?>
@@ -273,6 +330,7 @@ $prev_credit = 0;
             <?php endif; ?>
         </tr>
         <?php endforeach; ?>
+        <?php endif; ?>
         <tr>
             <td class="label">Balance:</td><td>₱<?php echo number_format($balance,2); ?></td>
             <td class="label">Previous Balance:</td><td>₱<?php echo number_format($prev_balance,2); ?></td>

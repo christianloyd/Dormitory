@@ -4,6 +4,7 @@
  * Path: /modules/invoice/view.php
  */
 require_once '../../includes/auth_check.php';
+require_once __DIR__ . '/../../helpers/BillingItems.php';
 
 if (!isset($_GET['id'])) {
     die("Invoice ID is required.");
@@ -34,18 +35,19 @@ $generated_datetime = date("M d, Y h:i A");
 // Payment Date display
 $payment_date = !empty($bill['payment_date']) ? date("M d, Y", strtotime($bill['payment_date'])) : '-';
 
-// Decode JSON for utilities and additional charges safely
-$utility_fee = json_decode($bill['utility_fee'], true) ?? [];
-$utility_amount = json_decode($bill['utility_amount'], true);
-if (!is_array($utility_amount)) $utility_amount = [$utility_amount ?? 0];
+// Fetch normalized billing line items
+$utilityItems = getBillingUtilityItems($conn, $bill_id);
+$additionalItems = getBillingAdditionalItems($conn, $bill_id);
 
-$add_charges = json_decode($bill['add_charges'], true) ?? [];
-$add_amount = json_decode($bill['add_amount'], true);
-if (!is_array($add_amount)) $add_amount = [$add_amount ?? 0];
+$utility_fee = array_column($utilityItems, 'label');
+$utility_amount = array_map(fn($item) => $item['amount'] ?? 0, $utilityItems);
+
+$add_charges = array_column($additionalItems, 'label');
+$add_amount = array_map(fn($item) => $item['amount'] ?? 0, $additionalItems);
 
 // Compute totals safely
-$utility_total = array_sum($utility_amount);
-$add_total = array_sum($add_amount);
+$utility_total = array_sum(array_map('floatval', $utility_amount));
+$add_total = array_sum(array_map('floatval', $add_amount));
 $interest = floatval($bill['interest'] ?? 0);
 $previous_balance = floatval($bill['previous_balance'] ?? 0);
 $previous_credit = floatval($bill['previous_credit'] ?? 0);

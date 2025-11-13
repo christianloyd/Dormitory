@@ -5,6 +5,7 @@
  */
 require_once '../../includes/auth_check.php';
 require_once __DIR__ . '/../../helpers/BillingLock.php';
+require_once __DIR__ . '/../../helpers/BillingItems.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $bill_id = intval($_POST['bill_id']);
@@ -36,96 +37,92 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_param("dsssi", $payment_amount, $payment_method, $payment_date, $status, $bill_id);
 
     if ($stmt->execute()) {
-        // Fetch tenant info for prompt
-        $stmt2 = $conn->prepare("SELECT tenant_name, contact_number, guardian_contact FROM tenants WHERE tenant_id = ?");
-        $stmt2->bind_param("i", $tenant_id);
-        $stmt2->execute();
-        $tenant = $stmt2->get_result()->fetch_assoc();
-        $stmt2->close();
+        $stmt->close();
 
-        // Only trigger prompt if status is Partial or Settled
-        if ($status === 'Partial' || $status === 'Settled') {
-            $_SESSION['showPaymentConfirmPrompt'] = true;
-            $_SESSION['tenant_name'] = $tenant['tenant_name'] ?? '';
-            $_SESSION['guardian_name'] = $tenant['guardian_contact'] ?? ''; // use guardian_contact
+        // Fetch latest payment/billing context
+        $detailsStmt = $conn->prepare("
+            SELECT b.bill_id, b.tenant_id, b.room_id, b.payment_amount, b.payment_method, b.payment_date,
+                   b.total_amount, b.base_rent, b.interest, b.due_date, b.status,
+                   t.tenant_name, t.contact_number, t.guardian_contact,
+                   r.room_number
+            FROM billing b
+            INNER JOIN tenants t ON b.tenant_id = t.tenant_id
+            INNER JOIN rooms r ON b.room_id = r.room_id
+            WHERE b.bill_id = ?
+        ");
+        $detailsStmt->bind_param("i", $bill_id);
+        $detailsStmt->execute();
+        $paymentRecord = $detailsStmt->get_result()->fetch_assoc();
+        $detailsStmt->close();
 
-            // Auto-send payment confirmation SMS
-            $smsHelper = new SMSHelper($conn);
-            $smsHelper->setSMSEnabled(SMS_ENABLED);
+        $responsePayload = [
+            'success' => true,
+            'message' => 'Payment saved successfully.',
+            'status' => $status,
+            'bill_id' => $bill_id,
+            'tenant_id' => $tenant_id
+        ];
 
-            // Fetch payment details for SMS
-            $stmt3 = $conn->prepare("
-                SELECT b.payment_amount, b.payment_method, b.payment_date, b.total_amount, r.room_number
-                FROM billing b
-                INNER JOIN rooms r ON b.room_id = r.room_id
-                WHERE b.bill_id = ?
-            ");
-            $stmt3->bind_param("i", $bill_id);
-            $stmt3->execute();
-            $paymentInfo = $stmt3->get_result()->fetch_assoc();
-            $stmt3->close();
+        if ($paymentRecord && ($status === 'Partial' || $status === 'Settled')) {
+            $utilityItems = getBillingUtilityItems($conn, $bill_id);
+            $additionalItems = getBillingAdditionalItems($conn, $bill_id);
 
-            if ($paymentInfo) {
-                $remaining_balance = $total_amount - $payment_amount;
+            $previewData = composePaymentConfirmationSMSMessage(
+                [
+                    'tenant_name' => $paymentRecord['tenant_name'],
+                    'room_number' => $paymentRecord['room_number'],
+                    'payment_date' => $paymentRecord['payment_date'],
+                    'payment_amount' => $paymentRecord['payment_amount'],
+                    'payment_method' => $paymentRecord['payment_method'],
+                    'status' => $paymentRecord['status'],
+                    'base_rent' => $paymentRecord['base_rent'],
+                    'interest' => $paymentRecord['interest'],
+                    'total_amount' => $paymentRecord['total_amount'],
+                    'due_date' => $paymentRecord['due_date']
+                ],
+                $utilityItems,
+                $additionalItems
+            );
 
-                // --- HYBRID MESSAGE: Choose format based on amount ---
-                $amount_threshold = 1000;
-                $use_detailed = ($payment_amount > $amount_threshold || $remaining_balance > $amount_threshold);
+            $previewMessage = $previewData['message'];
+            $charCount = mb_strlen($previewMessage);
+            $segments = max(1, ceil($charCount / 157));
 
-                if ($use_detailed) {
-                    // DETAILED MESSAGE (for amounts > ₱1,000)
-                    $message = "Ben and Sof Dormitory\n";
-                    $message .= "Purok 1A, Mati, San Miguel, ZDS\n\n";
-                    $message .= "Dear {$tenant['tenant_name']},\n\n";
-                    $message .= "PAYMENT CONFIRMATION\n";
-                    $message .= str_repeat("-", 30) . "\n";
-                    $message .= "Room: {$paymentInfo['room_number']}\n";
-                    $message .= "Date: " . date('M d, Y', strtotime($payment_date)) . "\n";
-                    $message .= "Paid: PHP " . number_format($payment_amount, 2) . "\n";
-                    $message .= "Method: {$payment_method}\n";
-                    $message .= "Status: {$status}\n";
-
-                    if ($status === 'Partial') {
-                        $message .= "\nBalance: PHP " . number_format($remaining_balance, 2) . "\n";
-                    } else {
-                        $message .= "\nFully settled!\n";
-                    }
-
-                    $message .= "\nThank you for your payment!";
-
-                } else {
-                    // SHORT MESSAGE (for amounts ≤ ₱1,000)
-                    $message = "Ben & Sof Dorm\n";
-                    $message .= "Payment Received!\n\n";
-                    $message .= "Room: {$paymentInfo['room_number']}\n";
-                    $message .= "Paid: PHP " . number_format($payment_amount, 2) . "\n";
-                    $message .= "Method: {$payment_method}\n";
-
-                    if ($status === 'Partial') {
-                        $message .= "Balance: PHP " . number_format($remaining_balance, 2) . "\n";
-                    } else {
-                        $message .= "Status: Settled\n";
-                    }
-
-                    $message .= "\nThank you!";
-                }
-
-                // Send to tenant
-                if (!empty($tenant['contact_number'])) {
-                    $smsHelper->sendSMS($tenant['contact_number'], $message, $tenant_id, 'Tenant');
-                }
-
-                // Send to guardian
-                if (!empty($tenant['guardian_contact'])) {
-                    $smsHelper->sendSMS($tenant['guardian_contact'], $message, $tenant_id, 'Guardian');
-                }
-            }
+            $responsePayload['sms_preview'] = $previewMessage;
+            $responsePayload['character_count'] = $charCount;
+            $responsePayload['segments'] = $segments;
+            $responsePayload['totals'] = [
+                'utilities' => $previewData['total_utilities'],
+                'additional' => $previewData['total_additional'],
+                'overall' => $previewData['total_amount']
+            ];
+            $responsePayload['remaining_balance'] = $previewData['remaining_balance'];
+            $responsePayload['tenant_name'] = $paymentRecord['tenant_name'];
         }
 
-        // Redirect back to viewbill
+        if (!empty($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode($responsePayload);
+            exit;
+        }
+
+        // Fallback for non-AJAX requests
+        Session::setMessage('Payment saved. You can send the confirmation SMS from the payment confirmation modal.', 'success');
         header("Location: view.php?tenant_id=$tenant_id");
         exit;
     } else {
+        $errorMessage = $stmt->error;
+        $stmt->close();
+
+        if (!empty($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error updating payment: ' . $errorMessage
+            ]);
+            exit;
+        }
+
         echo "<script src='https://cdn.jsdelivr.net/npm/sweetalert2@11'></script>";
         echo "<script>
             Swal.fire({
@@ -139,6 +136,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         </script>";
     }
-    $stmt->close();
-}
+} 
 ?>

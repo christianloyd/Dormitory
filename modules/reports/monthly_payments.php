@@ -4,6 +4,7 @@
  * Path: /modules/reports/monthly_payments.php
  */
 require_once "../../includes/auth_check.php";
+require_once __DIR__ . '/../../helpers/BillingItems.php';
 
 // Get selected month & year
 $selectedMonth = isset($_GET['month']) ? intval($_GET['month']) : date('m');
@@ -30,15 +31,14 @@ if(!$res) die("Query error: ".$conn->error);
 
 // Process each tenant
 foreach($res as $row) {
-    $utility_total = 0;
-    $add_total = 0;
+    $billId = intval($row['bill_id']);
     $interest = floatval($row['interest'] ?? 0);
 
-    $utility_amounts = json_decode($row['utility_amount'], true);
-    if(is_array($utility_amounts)) $utility_total = array_sum($utility_amounts);
+    $utilityItems = getBillingUtilityItems($conn, $billId);
+    $additionalItems = getBillingAdditionalItems($conn, $billId);
 
-    $add_amounts = json_decode($row['add_amount'], true);
-    if(is_array($add_amounts)) $add_total = array_sum($add_amounts);
+    $utility_total = sumBillingItems($utilityItems);
+    $add_total = sumBillingItems($additionalItems);
 
     $previous_balance = floatval($row['previous_balance'] ?? 0);
     $previous_credit  = floatval($row['credit_balance'] ?? 0);

@@ -7,6 +7,7 @@ error_reporting(E_ALL);
 ob_start();
 
 include __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../helpers/BillingItems.php';
 
 try {
     // --- Get JSON POST data ---
@@ -22,8 +23,8 @@ try {
     $stmt = $conn->prepare("
         SELECT t.tenant_id, t.tenant_name, t.contact_number, t.guardian_contact,
                r.room_number,
-               b.bill_date, b.due_date, b.payment_date, b.payment_amount,
-               b.payment_method, b.total_amount, b.base_rent, b.status
+               b.bill_id, b.bill_date, b.due_date, b.payment_date, b.payment_amount,
+               b.payment_method, b.total_amount, b.base_rent, b.interest, b.status
         FROM billing b
         INNER JOIN tenants t ON b.tenant_id = t.tenant_id
         INNER JOIN rooms r ON b.room_id = r.room_id
@@ -44,56 +45,24 @@ try {
         throw new Exception("No payment confirmation needed for status: " . $payment['status']);
     }
 
-    // --- Calculate remaining balance ---
-    $remaining_balance = $payment['total_amount'] - $payment['payment_amount'];
-
-    // --- HYBRID MESSAGE: Choose format based on amount ---
-    $amount_threshold = 1000;
-    $use_detailed = ($payment['payment_amount'] > $amount_threshold || $remaining_balance > $amount_threshold);
-
-    if ($use_detailed) {
-        // DETAILED MESSAGE (for amounts > ₱1,000)
-        $message = "Ben and Sof Dormitory\n";
-        $message .= "Purok 1A, Mati, San Miguel, ZDS\n\n";
-        $message .= "Dear {$payment['tenant_name']},\n\n";
-        $message .= "PAYMENT CONFIRMATION\n";
-        $message .= str_repeat("-", 30) . "\n";
-        $message .= "Room: {$payment['room_number']}\n";
-        $message .= "Date: " . date('M d, Y', strtotime($payment['payment_date'])) . "\n";
-        $message .= "Paid: PHP " . number_format($payment['payment_amount'], 2) . "\n";
-        $message .= "Method: {$payment['payment_method']}\n";
-        $message .= "Status: {$payment['status']}\n";
-        $message .= "Base Rent: PHP " . number_format($payment['base_rent'], 2) . "\n";
-        $message .= "Total Bill: PHP " . number_format($payment['total_amount'], 2) . "\n";
-
-        if ($payment['status'] === 'Partial') {
-            $message .= "\nBalance: PHP " . number_format($remaining_balance, 2) . "\n";
-            $message .= "Due: " . date('M d, Y', strtotime($payment['due_date'])) . "\n";
-        } else {
-            $message .= "\nFully settled!\n";
-        }
-
-        $message .= "\nThank you for your payment!";
-
-    } else {
-        // SHORT MESSAGE (for amounts ≤ ₱1,000)
-        $message = "Ben & Sof Dorm\n";
-        $message .= "Payment Received!\n\n";
-        $message .= "Room: {$payment['room_number']}\n";
-        $message .= "Paid: PHP " . number_format($payment['payment_amount'], 2) . "\n";
-        $message .= "Method: {$payment['payment_method']}\n";
-        $message .= "Base Rent: PHP " . number_format($payment['base_rent'], 2) . "\n";
-
-        if ($payment['status'] === 'Partial') {
-            $message .= "Balance: PHP " . number_format($remaining_balance, 2) . "\n";
-            $message .= "Total Bill: PHP " . number_format($payment['total_amount'], 2) . "\n";
-        } else {
-            $message .= "Total Bill: PHP " . number_format($payment['total_amount'], 2) . "\n";
-            $message .= "Status: Settled\n";
-        }
-
-        $message .= "\nThank you!";
+    if (empty($payment['bill_id'])) {
+        throw new Exception("Billing reference required for confirmation.");
     }
+
+    $billId = (int)$payment['bill_id'];
+    $utilityItems = getBillingUtilityItems($conn, $billId);
+    $additionalItems = getBillingAdditionalItems($conn, $billId);
+
+    $confirmationMessage = composePaymentConfirmationSMSMessage(
+        $payment,
+        $utilityItems,
+        $additionalItems
+    );
+
+    $message = $confirmationMessage['message'];
+    $remaining_balance = $confirmationMessage['remaining_balance'];
+    $characterCount = mb_strlen($message);
+    $segments = max(1, ceil($characterCount / 157));
 
     // --- Send SMS via IPROG API ---
     $smsHelper = new SMSHelper($conn);
@@ -151,7 +120,15 @@ try {
         'message' => count($sent_numbers) > 0 ? "Payment confirmation sent to " . count($sent_numbers) . " recipient(s)." : "Confirmation logged but SMS not sent.",
         'sent_to' => $sent_numbers,
         'sms_results' => $sms_results,
-        'sms_preview' => $message
+        'sms_preview' => $message,
+        'character_count' => $characterCount,
+        'segments' => $segments,
+        'totals' => [
+            'utilities' => $confirmationMessage['total_utilities'],
+            'additional' => $confirmationMessage['total_additional'],
+            'overall' => $confirmationMessage['total_amount']
+        ],
+        'remaining_balance' => $remaining_balance
     ]);
 
 } catch (Exception $e) {

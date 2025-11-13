@@ -200,9 +200,9 @@ $inactiveCount = $inactiveQuery->fetch_assoc()['inactive_count'];
 
     <!-- ACTIVE TENANTS -->
   <div class="tab-pane fade show active" id="activeTenants">
-    <div class="table-container">
-      <table id="tenantTable">
-        <thead>
+    <div class="table-container" style="overflow-x:auto; overflow-y:auto; max-height:500px; border:1px solid #ddd; border-radius:8px; padding:5px;">
+      <table id="tenantTable" style="width:100%; min-width:1000px; border-collapse:collapse;">
+        <thead style="background-color:#f5f5f5; position:sticky; top:0; z-index:1;">
           <tr>
             <th>Profile</th>
             <th>Proof</th>
@@ -249,7 +249,7 @@ $inactiveCount = $inactiveQuery->fetch_assoc()['inactive_count'];
                               \''.$row['guardian_contact'].'\',
                               \''.$row['room_id'].'\',
                               \''.$row['deck_type'].'\')">Edit</a>
-                           <a href="deleteindex.php?id='.$row['tenant_id'].'"class="btn btn-delete" data-id="'.$row['tenant_id'].'" data-name="'.htmlspecialchars($row['tenant_name'], ENT_QUOTES).'"> Delete
+                           <a href="delete.php?id='.$row['tenant_id'].'" class="btn btn-delete" data-id="'.$row['tenant_id'].'" data-name="'.htmlspecialchars($row['tenant_name'], ENT_QUOTES).'"> Inactive
                            </a>
                           </td>
                         </tr>';
@@ -382,26 +382,42 @@ function checkDeck() {
     if (deckSelect.value === "Lower Deck" && lowerAvailable <= 0) deckSelect.value = "";
 }
 
-document.getElementById("searchInput").addEventListener("input", function () {
-    const filter = this.value.toLowerCase().trim();
-    const rows = document.querySelectorAll("#tenantBody tr");
-    let found = false;
-    rows.forEach(row => {
-        const name = row.querySelector(".tenant-name").textContent.toLowerCase();
-        if (filter && name.includes(filter)) {
-            row.style.display = "";
-            row.classList.add("highlight");
-            found = true;
-        } else if (!filter) {
-            row.style.display = "";
-            row.classList.remove("highlight");
-            found = true;
-        } else {
-            row.style.display = "none";
-            row.classList.remove("highlight");
+document.addEventListener("DOMContentLoaded", function () {
+    const searchInput = document.getElementById("searchInput");
+    const tenantTableBody = document.querySelector("#activeTenants tbody");
+    const notFoundBanner = document.getElementById("notFound");
+
+    if (!searchInput || !tenantTableBody) {
+        return;
+    }
+
+    searchInput.addEventListener("input", function () {
+        const filter = this.value.toLowerCase().trim();
+        const rows = tenantTableBody.querySelectorAll("tr");
+        let found = false;
+
+        rows.forEach(row => {
+            const nameCell = row.querySelector("td:nth-child(3)");
+            const nameText = nameCell ? nameCell.textContent.toLowerCase() : "";
+
+            if (filter && nameText.includes(filter)) {
+                row.style.display = "";
+                row.classList.add("highlight");
+                found = true;
+            } else if (!filter) {
+                row.style.display = "";
+                row.classList.remove("highlight");
+                found = true;
+            } else {
+                row.style.display = "none";
+                row.classList.remove("highlight");
+            }
+        });
+
+        if (notFoundBanner) {
+            notFoundBanner.style.display = found ? "none" : "block";
         }
     });
-    document.getElementById("notFound").style.display = found ? "none" : "block";
 });
 
 function confirmSave() {

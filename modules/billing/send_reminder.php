@@ -7,6 +7,7 @@ error_reporting(E_ALL);
 ob_start();
 
 include __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../helpers/BillingItems.php';
 
 try {
     // --- Get JSON POST data ---
@@ -21,8 +22,7 @@ try {
     $stmt = $conn->prepare("
         SELECT t.tenant_name, t.contact_number, t.guardian_contact,
                r.room_number,
-               b.due_date, b.payment_date, b.base_rent, b.interest,
-               b.utility_fee, b.utility_amount, b.add_charges, b.add_amount,
+               b.bill_id, b.due_date, b.payment_date, b.base_rent, b.interest,
                b.payment_amount, b.payment_method
         FROM tenants t
         LEFT JOIN billing b ON t.tenant_id = b.tenant_id
@@ -39,64 +39,28 @@ try {
 
     if (!$tenant) throw new Exception("Tenant not found.");
 
-    // --- Safely decode JSON fields ---
-    $utilityFees = json_decode($tenant['utility_fee'], true);
-    if (!is_array($utilityFees)) $utilityFees = [];
-    $utilityAmounts = json_decode($tenant['utility_amount'], true);
-    if (!is_array($utilityAmounts)) $utilityAmounts = [];
-
-    $addCharges = json_decode($tenant['add_charges'], true);
-    if (!is_array($addCharges)) $addCharges = [];
-    $addAmounts = json_decode($tenant['add_amount'], true);
-    if (!is_array($addAmounts)) $addAmounts = [];
-
-    // Calculate totals for hybrid message selection
-    $total_utilities = array_sum($utilityAmounts);
-    $total_additional = array_sum($addAmounts);
-    $total_amount = $tenant['base_rent'] + $tenant['interest'] + $total_utilities + $total_additional;
-
-    // --- HYBRID MESSAGE: Choose format based on amount ---
-    // Threshold: ₱1,000 (configurable)
-    $amount_threshold = 1000;
-    $use_detailed = ($total_amount > $amount_threshold);
-
-    if ($use_detailed) {
-        // DETAILED MESSAGE (for amounts > ₱1,000)
-        $message = "Ben and Sof Dormitory\n";
-        $message .= "Purok 1A, Mati, San Miguel, ZDS\n\n";
-        $message .= "Good day, {$tenant['tenant_name']}!\n";
-        $message .= "Payment reminder for your room.\n\n";
-        $message .= "Room: {$tenant['room_number']}\n";
-        $message .= "Due: {$tenant['due_date']}\n\n";
-        $message .= "Charges:\n";
-        $message .= "- Base Rent: PHP " . number_format($tenant['base_rent'],2) . "\n";
-
-        if ($tenant['interest'] > 0) {
-            $message .= "- Interest: PHP " . number_format($tenant['interest'],2) . "\n";
-        }
-
-        if ($total_utilities > 0) {
-            $message .= "- Utilities: PHP " . number_format($total_utilities,2) . "\n";
-        }
-
-        if ($total_additional > 0) {
-            $message .= "- Other: PHP " . number_format($total_additional,2) . "\n";
-        }
-
-        $message .= "\nTotal: PHP " . number_format($total_amount,2) . "\n";
-        $message .= "\nPay within 3 days to avoid penalties.\nThank you!";
-
-    } else {
-        // SHORT MESSAGE (for amounts ≤ ₱1,000)
-        $message = "Ben & Sof Dorm\n";
-        $message .= "Payment Reminder\n\n";
-        $message .= "Hi {$tenant['tenant_name']}!\n";
-        $message .= "Room: {$tenant['room_number']}\n";
-        $message .= "Due: {$tenant['due_date']}\n";
-        $message .= "Base Rent: PHP " . number_format($tenant['base_rent'],2) . "\n";
-        $message .= "Amount Due: PHP " . number_format($total_amount,2) . "\n\n";
-        $message .= "Pay within 3 days.\nThank you!";
+    if (empty($tenant['bill_id'])) {
+        throw new Exception("No billing record found for this tenant.");
     }
+
+    $billId = (int)$tenant['bill_id'];
+
+    $utilityItems = getBillingUtilityItems($conn, $billId);
+    $additionalItems = getBillingAdditionalItems($conn, $billId);
+
+    $reminderMessage = composeReminderSMSMessage(
+        [
+            'tenant_name' => $tenant['tenant_name'] ?? '',
+            'room_number' => $tenant['room_number'] ?? '',
+            'due_date' => $tenant['due_date'] ?? null,
+            'base_rent' => $tenant['base_rent'] ?? 0,
+            'interest' => $tenant['interest'] ?? 0
+        ],
+        $utilityItems,
+        $additionalItems
+    );
+
+    $message = $reminderMessage['message'];
 
     // --- Send SMS via IPROG API ---
     $smsHelper = new SMSHelper($conn);
@@ -154,8 +118,11 @@ try {
         'sent_to' => $sent_numbers,
         'sms_results' => $sms_results,
         'sms_preview' => $message,
-        'message_type' => $use_detailed ? 'detailed' : 'short',
-        'total_amount' => $total_amount,
+        'totals' => [
+            'utilities' => $reminderMessage['total_utilities'],
+            'additional' => $reminderMessage['total_additional'],
+            'overall' => $reminderMessage['total_amount']
+        ],
         'character_count' => mb_strlen($message),
         'credits_per_sms' => ceil(mb_strlen($message) / 157)
     ]);

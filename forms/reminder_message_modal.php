@@ -1,3 +1,24 @@
+<?php
+require_once __DIR__ . '/../helpers/BillingItems.php';
+
+$utilityItems = getBillingUtilityItems($conn, $row['bill_id']);
+$additionalItems = getBillingAdditionalItems($conn, $row['bill_id']);
+$smsPreviewData = composeReminderSMSMessage(
+    [
+        'tenant_name' => $tenant['tenant_name'],
+        'room_number' => $tenant['room_number'],
+        'due_date' => $row['due_date'],
+        'base_rent' => $row['base_rent'],
+        'interest' => $row['interest']
+    ],
+    $utilityItems,
+    $additionalItems
+);
+$smsPreview = $smsPreviewData['message'];
+$smsCharacters = mb_strlen($smsPreview);
+$smsSegments = max(1, ceil($smsCharacters / 157));
+?>
+
 <!-- Reminder Message Modal -->
 <div class="modal fade" id="reminderMessageModal" tabindex="-1" aria-labelledby="reminderMessageModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -34,23 +55,21 @@
         $Reminder_Message .= "<li>Interest: ₱" . number_format($row['interest'],2) . "</li>";
 
         // Utility Fees
-        $utilityFees = json_decode($row['utility_fee'], true) ?? [];
-        $utilityAmounts = json_decode($row['utility_amount'], true) ?? [];
-        if(!empty($utilityFees)){
-            foreach($utilityFees as $i => $fee){
-                $amt = number_format($utilityAmounts[$i] ?? 0, 2);
+        if(!empty($utilityItems)){
+            foreach($utilityItems as $item){
+                $fee = htmlspecialchars($item['label']);
+                $amt = number_format($item['amount'] ?? 0, 2);
                 $Reminder_Message .= "<li>Utility Fees: {$fee} – ₱{$amt}</li>";
             }
         } else {
             $Reminder_Message .= "<li>Utility Fees: – ₱0.00</li>";
         }
-
+        
         // Additional Charges
-        $addCharges = json_decode($row['add_charges'], true) ?? [];
-        $addAmounts = json_decode($row['add_amount'], true) ?? [];
-        if(!empty($addCharges)){
-            foreach($addCharges as $i => $charge){
-                $amt = number_format($addAmounts[$i] ?? 0, 2);
+        if(!empty($additionalItems)){
+            foreach($additionalItems as $item){
+                $charge = htmlspecialchars($item['label']);
+                $amt = number_format($item['amount'] ?? 0, 2);
                 $Reminder_Message .= "<li>Additional Charges: {$charge} – ₱{$amt}</li>";
             }
         } else {
@@ -82,6 +101,12 @@
 
         echo $Reminder_Message;
         ?>
+        <hr>
+        <div class="mb-3">
+          <h6 class="fw-bold">SMS Preview</h6>
+          <pre class="bg-light p-3 border" style="white-space: pre-wrap;"><?php echo htmlspecialchars($smsPreview); ?></pre>
+          <p class="small text-muted mb-0">Characters: <?php echo $smsCharacters; ?> &middot; Estimated Segments: <?php echo $smsSegments; ?></p>
+        </div>
       </div>
       
       <div class="modal-footer">

@@ -4,6 +4,7 @@
  * Path: /modules/reports/billing_summary.php
  */
 require_once "../../includes/auth_check.php";
+require_once __DIR__ . '/../../helpers/BillingItems.php';
 
 // Capture filter month/year
 $filter_month = isset($_GET['month']) ? intval($_GET['month']) : 0;
@@ -18,11 +19,10 @@ $sql = "
         b.due_date,
         b.payment_date,
         b.base_rent,
-        b.utility_fee,
-        b.utility_amount,
-        b.add_charges,
-        b.add_amount,
         b.interest,
+        b.previous_balance,
+        b.previous_credit,
+        b.other_amount,
         b.total_amount,
         b.payment_amount,
         b.balance,
@@ -35,10 +35,12 @@ $sql = "
 ";
 
 // Add WHERE if filtered
-$where = [];
-if ($filter_month > 0) $where[] = "MONTH(b.due_date) = $filter_month";
-if ($filter_year > 0) $where[] = "YEAR(b.due_date) = $filter_year";
-if ($where) $sql .= " WHERE " . implode(" AND ", $where);
+$filters = [];
+if ($filter_month > 0) $filters[] = "MONTH(b.due_date) = $filter_month";
+if ($filter_year > 0) $filters[] = "YEAR(b.due_date) = $filter_year";
+if ($filters) {
+    $sql .= " AND " . implode(" AND ", $filters);
+}
 
 $sql .= " ORDER BY t.tenant_name ASC";
 
@@ -111,15 +113,14 @@ $result = $conn->query($sql);
             <tbody>
                 <?php if ($result && $result->num_rows > 0): ?>
                     <?php while ($row = $result->fetch_assoc()):
-                        $utility_total = 0;
-                        $add_total = 0;
+                        $billId = intval($row['invoice_id']);
                         $interest = floatval($row['interest'] ?? 0);
 
-                        $utility_amounts = json_decode($row['utility_amount'], true);
-                        if (is_array($utility_amounts)) $utility_total = array_sum($utility_amounts);
+                        $utilityItems = getBillingUtilityItems($conn, $billId);
+                        $additionalItems = getBillingAdditionalItems($conn, $billId);
 
-                        $add_amounts = json_decode($row['add_amount'], true);
-                        if (is_array($add_amounts)) $add_total = array_sum($add_amounts);
+                        $utility_total = sumBillingItems($utilityItems);
+                        $add_total = sumBillingItems($additionalItems);
 
                         $previous_balance = floatval($row['previous_balance'] ?? 0);
                         $previous_credit = floatval($row['previous_credit'] ?? 0);

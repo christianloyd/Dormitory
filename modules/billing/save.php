@@ -6,6 +6,7 @@ error_reporting(E_ALL);
 
 require_once '../../includes/auth_check.php';
 require_once __DIR__ . '/../../helpers/BillingLock.php';
+require_once __DIR__ . '/../../helpers/BillingItems.php';
 
 try {
     // --- Input handling ---
@@ -19,68 +20,107 @@ try {
     }
 
     // --- Utility fees & amounts ---
-    $utility_fees = $_POST['utility_fee'] ?? [];
-    $utility_amounts = $_POST['utility_amount'] ?? [];
-    // Ensure arrays match in length
-    $utility_fees = array_values($utility_fees);
-    $utility_amounts = array_map('floatval', array_pad($utility_amounts, count($utility_fees), 0));
+    $utility_fees_raw = $_POST['utility_fee'] ?? [];
+    $utility_amounts_raw = $_POST['utility_amount'] ?? [];
+    $utility_fees = [];
+    $utility_amounts = [];
+
+    foreach ($utility_fees_raw as $idx => $fee) {
+        $fee = trim((string)$fee);
+        $amount = isset($utility_amounts_raw[$idx]) ? floatval($utility_amounts_raw[$idx]) : 0;
+
+        if ($fee === '' && $amount == 0) {
+            continue; // skip empty pairs
+        }
+
+        $utility_fees[] = $fee;
+        $utility_amounts[] = $amount;
+    }
 
     // --- Additional charges & amounts ---
-    $add_charges = $_POST['add_charges'] ?? [];
-    $add_amounts = $_POST['add_amount'] ?? [];
-    $add_charges = array_values($add_charges);
-    $add_amounts = array_map('floatval', array_pad($add_amounts, count($add_charges), 0));
+    $add_charges_raw = $_POST['add_charges'] ?? [];
+    $add_amounts_raw = $_POST['add_amount'] ?? [];
+    $add_charges = [];
+    $add_amounts = [];
+
+    foreach ($add_charges_raw as $idx => $charge) {
+        $charge = trim((string)$charge);
+        $amount = isset($add_amounts_raw[$idx]) ? floatval($add_amounts_raw[$idx]) : 0;
+
+        if ($charge === '' && $amount == 0) {
+            continue;
+        }
+
+        $add_charges[] = $charge;
+        $add_amounts[] = $amount;
+    }
 
     // --- Validate required fields ---
     if (empty($tenant_id) || empty($room_id) || empty($due_date)) {
         throw new Exception("Missing required fields.");
     }
 
-    // --- Prepare insert statement ---
+    $transactionStarted = false;
+    $conn->begin_transaction();
+    $transactionStarted = true;
+
     $stmt = $conn->prepare("
         INSERT INTO billing 
-        (tenant_id, room_id, due_date, base_rent, utility_fee, utility_amount, add_charges, add_amount)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (tenant_id, room_id, due_date, base_rent)
+        VALUES (?, ?, ?, ?)
     ");
 
     if (!$stmt) {
         throw new Exception("Database error: " . $conn->error);
     }
 
-    // --- JSON encode arrays ---
-    $utility_fees_json = json_encode($utility_fees);
-    $utility_amounts_json = json_encode($utility_amounts);
-    $add_charges_json = json_encode($add_charges);
-    $add_amounts_json = json_encode($add_amounts);
-
-    // --- Bind parameters (corrected types) ---
-    // i = int, s = string, d = double
     $stmt->bind_param(
-    "iisdssss",
-    $tenant_id,            // i
-    $room_id,              // i
-    $due_date,             // s
-    $base_rent,            // d
-    $utility_fees_json,    // s
-    $utility_amounts_json, // s
-    $add_charges_json,     // s
-    $add_amounts_json      // s
-);
+        "iisd",
+        $tenant_id,
+        $room_id,
+        $due_date,
+        $base_rent
+    );
 
-    // --- Execute ---
-    if ($stmt->execute()) {
-        echo json_encode([
-            'success' => true,
-            'tenant_id' => $tenant_id
-        ]);
-    } else {
+    if (!$stmt->execute()) {
         throw new Exception("Failed to insert billing: " . $stmt->error);
     }
 
+    $bill_id = $stmt->insert_id;
     $stmt->close();
+
+    $utilityItems = [];
+    foreach ($utility_fees as $idx => $fee) {
+        $utilityItems[] = [
+            'label' => $fee,
+            'amount' => $utility_amounts[$idx] ?? 0
+        ];
+    }
+
+    $additionalItems = [];
+    foreach ($add_charges as $idx => $charge) {
+        $additionalItems[] = [
+            'label' => $charge,
+            'amount' => $add_amounts[$idx] ?? 0
+        ];
+    }
+
+    replaceBillingUtilityItems($conn, $bill_id, $utilityItems);
+    replaceBillingAdditionalItems($conn, $bill_id, $additionalItems);
+
+    $conn->commit();
+    $transactionStarted = false;
+
+    echo json_encode([
+        'success' => true,
+        'tenant_id' => $tenant_id
+    ]);
     exit;
 
 } catch (Exception $e) {
+    if (isset($transactionStarted) && $transactionStarted) {
+        $conn->rollback();
+    }
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()

@@ -246,7 +246,7 @@ while ($row = mysqli_fetch_assoc($roomResult)):
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="js/rooms.js"></script>
+<script src="../../js/room.js"></script>
 
 <script>
 document.querySelectorAll('.btn-delete').forEach(btn => {

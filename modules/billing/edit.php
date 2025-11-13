@@ -4,7 +4,7 @@ require_once '../../includes/auth_check.php';
 require_once __DIR__ . '/../../helpers/BillingLock.php';
 
 // Security check
-}
+
 
 // Only POST request allowed
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

@@ -5,6 +5,7 @@
  */
 require_once "../../includes/auth_check.php";
 require_once __DIR__ . '/../../helpers/BillingLock.php';
+require_once __DIR__ . '/../../helpers/BillingItems.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') die("Invalid access.");
 
@@ -20,32 +21,56 @@ $payment_amount = floatval($_POST['payment_amount'] ?? 0);
 $payment_method = $_POST['payment_method'] ?? '';
 
 // --- Utilities / Additional Charges ---
-$utility_fee = $_POST['utility_fee'] ?? [];
-$utility_amount = array_map('floatval', $_POST['utility_amount'] ?? []);
+$utility_fees_raw = $_POST['utility_fee'] ?? [];
+$utility_amounts_raw = $_POST['utility_amount'] ?? [];
+$utilityItems = [];
 
-$add_charges = $_POST['add_charges'] ?? [];
-$add_amount = array_map('floatval', $_POST['add_amount'] ?? []);
+foreach ($utility_fees_raw as $idx => $fee) {
+    $fee = trim((string)$fee);
+    $amount = isset($utility_amounts_raw[$idx]) ? floatval($utility_amounts_raw[$idx]) : 0;
+    if ($fee === '' && $amount == 0) {
+        continue;
+    }
+    $utilityItems[] = [
+        'label' => $fee,
+        'amount' => $amount
+    ];
+}
 
-// --- JSON encode ---
-$utility_fee_json = json_encode($utility_fee);
-$utility_amount_json = json_encode($utility_amount);
-$add_charges_json = json_encode($add_charges);
-$add_amount_json = json_encode($add_amount);
+$add_charges_raw = $_POST['add_charges'] ?? [];
+$add_amounts_raw = $_POST['add_amount'] ?? [];
+$additionalItems = [];
+
+foreach ($add_charges_raw as $idx => $charge) {
+    $charge = trim((string)$charge);
+    $amount = isset($add_amounts_raw[$idx]) ? floatval($add_amounts_raw[$idx]) : 0;
+    if ($charge === '' && $amount == 0) {
+        continue;
+    }
+    $additionalItems[] = [
+        'label' => $charge,
+        'amount' => $amount
+    ];
+}
 
 // --- Update billing safely ---
+$utilityTotal = sumBillingItems($utilityItems);
+$additionalTotal = sumBillingItems($additionalItems);
+
+$conn->begin_transaction();
+
 $sql = "UPDATE billing SET 
         tenant_id = ?, 
         room_id = ?, 
         due_date = ?, 
         payment_date = ?, 
         base_rent = ?, 
-        utility_fee = ?, 
-        utility_amount = ?, 
-        add_charges = ?, 
-        add_amount = ?, 
         interest = ?, 
         payment_amount = ?, 
-        payment_method = ?
+        payment_method = ?,
+        status = ?,
+        balance = ?,
+        credit_balance = ?
     WHERE bill_id = ?";
 
 if (isBillingRecordLocked($conn, $bill_id)) {
@@ -56,26 +81,32 @@ if (isBillingRecordLocked($conn, $bill_id)) {
 
 $stmt = $conn->prepare($sql);
 $stmt->bind_param(
-    "iissdssssddsi",
+    "iissddsdssdi",
     $tenant_id,
     $room_id,
     $due_date,
     $payment_date,
     $base_rent,
-    $utility_fee_json,
-    $utility_amount_json,
-    $add_charges_json,
-    $add_amount_json,
     $interest,
     $payment_amount,
     $payment_method,
+    $status,
+    $balance,
+    $credit_balance,
     $bill_id
 );
 
 if ($stmt->execute()) {
+    $stmt->close();
+    replaceBillingUtilityItems($conn, $bill_id, $utilityItems);
+    replaceBillingAdditionalItems($conn, $bill_id, $additionalItems);
+    $conn->commit();
     header("Location: view.php?tenant_id=".$tenant_id);
     exit();
 } else {
-    echo "Error updating bill: " . $stmt->error;
+    $error = $stmt->error;
+    $stmt->close();
+    $conn->rollback();
+    echo "Error updating bill: " . $error;
 }
 ?>

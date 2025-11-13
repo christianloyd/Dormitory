@@ -53,28 +53,150 @@
   </div>
 </div>
 
-<!-- ✅ SweetAlert2 Confirmation Script -->
+<!-- ✅ SweetAlert2 Confirmation & SMS Preview Script -->
 <script>
 function confirmPayment<?php echo $row['bill_id']; ?>(event) {
-  event.preventDefault(); // Stop the normal submission first
+  event.preventDefault();
   const form = event.target.closest('form');
-  const tenantName = "<?php echo addslashes($row['tenant_name']); ?>";
+
+  if (!form.reportValidity()) {
+    return false;
+  }
+
+  const formData = new FormData(form);
+  formData.append('ajax', '1');
 
   Swal.fire({
-    title: 'Confirm Payment',
-    html: `Are you sure you want to save this payment for <b>${tenantName}</b>?`,
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: 'Yes, confirm',
-    cancelButtonText: 'Cancel',
-    confirmButtonColor: '#198754', // Bootstrap green
-    cancelButtonColor: '#6c757d'   // Bootstrap gray
-  }).then((result) => {
-    if (result.isConfirmed) {
-      form.submit(); // Proceed only if confirmed
+    title: 'Saving payment...',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
     }
   });
 
-  return false; // Block default form submit until confirmed
+  fetch('process_payment.php', {
+    method: 'POST',
+    body: formData
+  })
+    .then(response => response.json())
+    .then(data => {
+      Swal.close();
+
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to save payment.');
+      }
+
+      const paymentModalEl = document.getElementById('paymentModal<?php echo $row['bill_id']; ?>');
+      const paymentModalInstance = bootstrap.Modal.getInstance(paymentModalEl) || new bootstrap.Modal(paymentModalEl);
+      paymentModalInstance.hide();
+
+      if (data.sms_preview) {
+        showPaymentPreview<?php echo $row['bill_id']; ?>(data);
+      } else {
+        Swal.fire({
+          title: 'Payment Saved',
+          text: data.message || 'Payment recorded successfully.',
+          icon: 'success'
+        }).then(() => window.location.reload());
+      }
+    })
+    .catch(error => {
+      Swal.close();
+      Swal.fire({
+        title: 'Error',
+        html: 'Failed to save payment:<br>' + escapeHtml<?php echo $row['bill_id']; ?>(error.message || error),
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
+    });
+
+  return false;
+}
+
+function showPaymentPreview<?php echo $row['bill_id']; ?>(data) {
+  const previewHtml = `
+    <div class="text-start">
+      <p class="mb-2">SMS preview for <strong>${escapeHtml<?php echo $row['bill_id']; ?>(data.tenant_name || '')}</strong>:</p>
+      <pre class="bg-light p-3 border" style="white-space: pre-wrap;">${escapeHtml<?php echo $row['bill_id']; ?>(data.sms_preview)}</pre>
+      <p class="small text-muted mb-0">Characters: ${data.character_count || 0} · Segments: ${data.segments || 1}</p>
+    </div>
+  `;
+
+  Swal.fire({
+    title: 'Send Payment Confirmation?',
+    html: previewHtml,
+    icon: 'info',
+    showCancelButton: true,
+    confirmButtonText: 'Send SMS',
+    cancelButtonText: 'Skip SMS',
+    confirmButtonColor: '#198754',
+    cancelButtonColor: '#6c757d',
+    allowOutsideClick: false,
+    width: 600
+  }).then(result => {
+    if (result.isConfirmed) {
+      sendPaymentConfirmation<?php echo $row['bill_id']; ?>(data.bill_id);
+    } else {
+      Swal.fire({
+        title: 'Payment Saved',
+        text: 'Payment recorded without sending SMS.',
+        icon: 'success'
+      }).then(() => window.location.reload());
+    }
+  });
+}
+
+function sendPaymentConfirmation<?php echo $row['bill_id']; ?>(billId) {
+  Swal.fire({
+    title: 'Sending SMS...',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+
+  fetch('send_payment_confirm.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ bill_id: billId })
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to send confirmation SMS.');
+      }
+
+      Swal.fire({
+        title: 'SMS Sent',
+        html: `
+          <div class="text-start">
+            <p class="mb-2"><strong>${escapeHtml<?php echo $row['bill_id']; ?>(data.message)}</strong></p>
+            <pre class="bg-light p-3 border" style="white-space: pre-wrap;">${escapeHtml<?php echo $row['bill_id']; ?>(data.sms_preview)}</pre>
+            <p class="small text-muted mb-0">Characters: ${data.character_count || 0} · Segments: ${Math.max(1, Math.ceil((data.character_count || 0) / 157))}</p>
+          </div>
+        `,
+        icon: 'success',
+        width: 600
+      }).then(() => window.location.reload());
+    })
+    .catch(error => {
+      Swal.fire({
+        title: 'SMS Error',
+        html: 'Failed to send confirmation:<br>' + escapeHtml<?php echo $row['bill_id']; ?>(error.message || error),
+        icon: 'error'
+      }).then(() => window.location.reload());
+    });
+}
+
+function escapeHtml<?php echo $row['bill_id']; ?>(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 </script>

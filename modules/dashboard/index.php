@@ -4,6 +4,7 @@
  * Path: /modules/dashboard/index.php
  */
 require_once '../../includes/auth_check.php';
+require_once __DIR__ . '/../../helpers/BillingItems.php';
 
 $currentMonth = date('m');
 $currentYear  = date('Y');
@@ -58,16 +59,13 @@ $res = $conn->query($query);
 
 while ($row = $res->fetch_assoc()) {
 
-    // Decode JSON fields safely
-    $utility_amounts = json_decode($row['utility_amount'], true);
-    if (!is_array($utility_amounts)) $utility_amounts = [$utility_amounts ?? 0];
-
-    $add_amounts = json_decode($row['add_amount'], true);
-    if (!is_array($add_amounts)) $add_amounts = [$add_amounts ?? 0];
+    $billId = isset($row['bill_id']) ? (int)$row['bill_id'] : 0;
+    $utilityItems = $billId ? getBillingUtilityItems($conn, $billId) : [];
+    $additionalItems = $billId ? getBillingAdditionalItems($conn, $billId) : [];
 
     $base_rent        = floatval($row['base_rent'] ?? 0);
-    $utility_total    = array_sum(array_map('floatval', $utility_amounts));
-    $add_total        = array_sum(array_map('floatval', $add_amounts));
+    $utility_total    = sumBillingItems($utilityItems);
+    $add_total        = sumBillingItems($additionalItems);
     $interest         = floatval($row['interest'] ?? 0);
     $previous_balance = floatval($row['previous_balance'] ?? 0);
     $other_amount     = floatval($row['other_amount'] ?? 0);
@@ -150,9 +148,21 @@ function getBillingStatus($total, $payment, $prev_credit) {
 $settledCount = $partialCount = $pendingCount = 0;
 
 $billingRes = $conn->query("
-    SELECT b.* 
+    SELECT b.*, 
+           IFNULL(bu.utility_total, 0) AS utility_total,
+           IFNULL(ba.add_total, 0) AS add_total
     FROM billing b
     INNER JOIN tenants t ON b.tenant_id = t.tenant_id
+    LEFT JOIN (
+        SELECT bill_id, SUM(amount) AS utility_total
+        FROM billing_utility_items
+        GROUP BY bill_id
+    ) bu ON bu.bill_id = b.bill_id
+    LEFT JOIN (
+        SELECT bill_id, SUM(amount) AS add_total
+        FROM billing_additional_items
+        GROUP BY bill_id
+    ) ba ON ba.bill_id = b.bill_id
     WHERE 
         MONTH(b.due_date) = $currentMonth
         AND YEAR(b.due_date) = $currentYear
@@ -173,17 +183,10 @@ $notifications = $conn->query("
 ");
 
 
-    // Safely decode JSON fields
-    $utility_amounts = json_decode($bill['utility_amount'], true);
-    if (!is_array($utility_amounts)) $utility_amounts = [$utility_amounts ?? 0];
-
-    $add_amounts = json_decode($bill['add_amount'], true);
-    if (!is_array($add_amounts)) $add_amounts = [$add_amounts ?? 0];
-
     // Compute totals
     $base_rent        = floatval($bill['base_rent'] ?? 0);
-    $utility_total    = array_sum(array_map('floatval', $utility_amounts));
-    $add_total        = array_sum(array_map('floatval', $add_amounts));
+    $utility_total    = floatval($bill['utility_total'] ?? 0);
+    $add_total        = floatval($bill['add_total'] ?? 0);
     $interest         = floatval($bill['interest'] ?? 0);
     $previous_balance = floatval($bill['previous_balance'] ?? 0);
     $other_amount     = floatval($bill['other_amount'] ?? 0);
@@ -244,11 +247,27 @@ $monthlyPending = array_fill(1, 12, 0);
 $sqlStatus = "
     SELECT 
         MONTH(b.due_date) AS month,
-        SUM(CASE WHEN b.payment_amount >= (b.base_rent + COALESCE(b.previous_balance,0) + COALESCE(b.other_amount,0) + COALESCE(b.interest,0) + COALESCE(b.add_amount,0) + COALESCE(b.utility_amount,0)) THEN 1 ELSE 0 END) AS settled,
-        SUM(CASE WHEN b.payment_amount > 0 AND b.payment_amount < (b.base_rent + COALESCE(b.previous_balance,0) + COALESCE(b.other_amount,0) + COALESCE(b.interest,0) + COALESCE(b.add_amount,0) + COALESCE(b.utility_amount,0)) THEN 1 ELSE 0 END) AS partial,
+        SUM(CASE 
+                WHEN b.payment_amount >= (b.base_rent + COALESCE(b.previous_balance,0) + COALESCE(b.other_amount,0) + COALESCE(b.interest,0) + IFNULL(bu.utility_total,0) + IFNULL(ba.add_total,0)) 
+                THEN 1 ELSE 0 END
+            ) AS settled,
+        SUM(CASE 
+                WHEN b.payment_amount > 0 AND b.payment_amount < (b.base_rent + COALESCE(b.previous_balance,0) + COALESCE(b.other_amount,0) + COALESCE(b.interest,0) + IFNULL(bu.utility_total,0) + IFNULL(ba.add_total,0)) 
+                THEN 1 ELSE 0 END
+            ) AS partial,
         SUM(CASE WHEN b.payment_amount = 0 THEN 1 ELSE 0 END) AS pending
     FROM billing b
     INNER JOIN tenants t ON b.tenant_id = t.tenant_id
+    LEFT JOIN (
+        SELECT bill_id, SUM(amount) AS utility_total
+        FROM billing_utility_items
+        GROUP BY bill_id
+    ) bu ON bu.bill_id = b.bill_id
+    LEFT JOIN (
+        SELECT bill_id, SUM(amount) AS add_total
+        FROM billing_additional_items
+        GROUP BY bill_id
+    ) ba ON ba.bill_id = b.bill_id
     WHERE YEAR(b.due_date) = ? AND t.status = 'Active'
     GROUP BY MONTH(b.due_date)
 ";
