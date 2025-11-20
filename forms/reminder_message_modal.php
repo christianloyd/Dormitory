@@ -1,12 +1,44 @@
 <?php
 require_once __DIR__ . '/../helpers/BillingItems.php';
 
-$utilityItems = getBillingUtilityItems($conn, $row['bill_id']);
-$additionalItems = getBillingAdditionalItems($conn, $row['bill_id']);
+$reminderData = $reminderContext ?? [];
+
+$rowDefaults = [
+    'bill_id' => null,
+    'due_date' => '',
+    'payment_date' => '',
+    'base_rent' => 0,
+    'interest' => 0,
+    'payment_amount' => 0,
+    'payment_method' => ''
+];
+
+$row = array_merge($rowDefaults, $reminderData['row'] ?? []);
+
+$billId = $row['bill_id'];
+$utilityItems = $reminderData['utilityItems'] ?? [];
+$additionalItems = $reminderData['additionalItems'] ?? [];
+
+if ($billId !== null) {
+    if (empty($utilityItems)) {
+        $utilityItems = getBillingUtilityItems($conn, (int)$billId);
+    }
+    if (empty($additionalItems)) {
+        $additionalItems = getBillingAdditionalItems($conn, (int)$billId);
+    }
+}
+
+$balance = $reminderData['balance'] ?? ($balance ?? 0);
+$prev_balance = $reminderData['prev_balance'] ?? ($prev_balance ?? 0);
+$credit = $reminderData['credit'] ?? ($credit ?? 0);
+$prev_credit = $reminderData['prev_credit'] ?? ($prev_credit ?? 0);
+$total_display = $reminderData['total_display'] ?? ($total_display ?? 0);
+$status = $reminderData['status'] ?? ($status ?? '');
+
 $smsPreviewData = composeReminderSMSMessage(
     [
-        'tenant_name' => $tenant['tenant_name'],
-        'room_number' => $tenant['room_number'],
+        'tenant_name' => $tenant['tenant_name'] ?? 'Tenant',
+        'room_number' => $tenant['room_number'] ?? '-',
         'due_date' => $row['due_date'],
         'base_rent' => $row['base_rent'],
         'interest' => $row['interest']
@@ -79,7 +111,7 @@ $smsSegments = max(1, ceil($smsCharacters / 157));
         $Reminder_Message .= "</ul>";
 
         $Reminder_Message .= "
-        <h6 class='mt-3'>Balances</h6>
+        <h6 class='mt-3'>Payment Details</h6>
         <ul>
           <li>Current Balance: ₱" . number_format($balance,2) . "</li>
           <li>Previous Balance: ₱" . number_format($prev_balance,2) . "</li>
@@ -124,7 +156,10 @@ $smsSegments = max(1, ceil($smsCharacters / 157));
 </div>
 
 <script>
-document.getElementById('sendReminderBtn').addEventListener('click', function() {
+const sendReminderBtn = document.getElementById('sendReminderBtn');
+
+if (sendReminderBtn) {
+sendReminderBtn.addEventListener('click', function() {
     // Disable the button to prevent multiple clicks
     const btn = this;
     btn.disabled = true;
@@ -136,7 +171,7 @@ document.getElementById('sendReminderBtn').addEventListener('click', function() 
     statusDiv.innerHTML = '<div class="alert alert-info mb-0"><i class="fas fa-info-circle"></i> Sending SMS notification...</div>';
 
     // Prepare data
-    const tenant_id = "<?php echo $tenant['tenant_id']; ?>";
+    const tenant_id = "<?php echo $tenant['tenant_id'] ?? ''; ?>";
 
     fetch("send_reminder.php", {
         method: "POST",
@@ -215,4 +250,5 @@ document.getElementById('sendReminderBtn').addEventListener('click', function() 
         btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send SMS Notification';
     });
 });
+}
 </script>

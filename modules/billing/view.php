@@ -53,6 +53,7 @@ $stmt->close();
 $showReminderPrompt = false;
 $tenant_name = $tenant['tenant_name'];
 $guardian_name = $tenant['guardian_name'] ?? '';
+$billIdForPending = null;
 
 $expectedReminderRecipients = 0;
 if (!empty($tenant['contact_number'])) {
@@ -156,6 +157,7 @@ $end_date = isset($_GET['end_date']) ? $_GET['end_date'] : '';
 // Prepare running balances
 $prev_balance = 0;
 $prev_credit = 0;
+$reminderContext = null;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -261,6 +263,23 @@ $prev_credit = 0;
 
     $current_prev_balance = $balance;
     $current_prev_credit = $credit;
+
+    if ($billIdForPending && $row['bill_id'] === $billIdForPending && $reminderContext === null) {
+        $rowForReminder = $row;
+        $rowForReminder['base_rent'] = $rowForReminder['base_rent'] ?? $base_rent_for_bill;
+
+        $reminderContext = [
+            'row' => $rowForReminder,
+            'utilityItems' => $utilityItems,
+            'additionalItems' => $addItems,
+            'balance' => $balance,
+            'prev_balance' => $prev_balance,
+            'credit' => $credit,
+            'prev_credit' => $prev_credit,
+            'total_display' => $total_display,
+            'status' => $status,
+        ];
+    }
 
     $is_bill_locked = isBillingLockedByDate($row['due_date']);
 ?>

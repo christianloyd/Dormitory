@@ -83,6 +83,33 @@ function capitalizeName(input) {
     input.value = words.join(' ');
 }
 
+function limitSelectOptions(selectId, visibleCount = 5) {
+    const selectEl = document.getElementById(selectId);
+    if (!selectEl) return;
+
+    const collapsedSize = 1;
+
+    const expand = () => {
+        if (selectEl.disabled) return;
+        selectEl.size = visibleCount;
+        selectEl.style.overflowY = 'auto';
+    };
+
+    const collapse = () => {
+        selectEl.size = collapsedSize;
+        selectEl.style.overflowY = '';
+    };
+
+    selectEl.addEventListener('focus', expand);
+    selectEl.addEventListener('mousedown', expand);
+    selectEl.addEventListener('keydown', expand);
+    selectEl.addEventListener('change', () => {
+        collapse();
+        selectEl.blur();
+    });
+    selectEl.addEventListener('blur', collapse);
+}
+
 // ---------- ADD THIS PART FOR FULLNAME + ADDRESS ---------- //
 document.addEventListener("DOMContentLoaded", function () {
     const nameField = document.querySelector('input[name="tenant_name"]');
@@ -99,6 +126,9 @@ document.addEventListener("DOMContentLoaded", function () {
             capitalizeName(this);
         });
     }
+
+    limitSelectOptions("roomSelect");
+    limitSelectOptions("roomSelectEdit");
 });
 
 

@@ -317,7 +317,7 @@ $inactiveCount = $inactiveQuery->fetch_assoc()['inactive_count'];
 <!-- LINK TO EDIT TENANT MODAL -->
 <?php include '../../forms/edit_tenant_modal_form.php'; ?>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<?= BASE_PATH ?>/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="<?= BASE_PATH ?>/js/sweetalert-helpers.js"></script>
 <script>
