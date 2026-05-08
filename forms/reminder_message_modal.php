@@ -57,7 +57,7 @@ $smsSegments = max(1, ceil($smsCharacters / 157));
     <div class="modal-content">
       
       <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title" id="reminderMessageModalLabel">Payment Reminder</h5>
+        <h5 class="modal-title" id="reminderMessageModalLabel">Billing Notice</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       
@@ -71,7 +71,7 @@ $smsSegments = max(1, ceil($smsCharacters / 157));
         </div>
         <div class='mb-3'>
           <p>Good day, <strong>{$tenant['tenant_name']}</strong>!</p>
-          <p>This is a friendly reminder regarding your billing for your room. Kindly see the details below:</p>
+          <p>This is a friendly notice regarding your billing for your room. Kindly see the details below:</p>
         </div>
         <table class='table table-sm table-bordered'>
           <tbody>
@@ -84,7 +84,7 @@ $smsSegments = max(1, ceil($smsCharacters / 157));
         <h6 class='mt-3'>Charges</h6>
         <ul>";
         $Reminder_Message .= "<li>Base Rent: ₱" . number_format($row['base_rent'],2) . "</li>";
-        $Reminder_Message .= "<li>Interest: ₱" . number_format($row['interest'],2) . "</li>";
+        $Reminder_Message .= "<li>Late Payment Charge: ₱" . number_format($row['interest'],2) . "</li>";
 
         // Utility Fees
         if(!empty($utilityItems)){

@@ -5,9 +5,9 @@
  */
 
 class SMSHelper {
-    private $apiUrl = 'https://sms.iprogtech.com/api/v1/sms_messages';
-    private $apiToken = 'b3372e928050d30de930b74a8bf86321b21ccc74';
-    private $sender = 'BEN & SOF Dormitory';
+    private $apiUrl;
+    private $apiToken;
+    private $sender;
     private $conn;
     private $smsEnabled = true; // Can be controlled from settings
 
@@ -17,6 +17,19 @@ class SMSHelper {
      */
     public function __construct($connection) {
         $this->conn = $connection;
+
+        // Prefer configuration from environment constants, fallback to defaults
+        $this->apiUrl = defined('SMS_API_URL') && SMS_API_URL
+            ? SMS_API_URL
+            : 'https://sms.iprogtech.com/api/v1/sms_messages';
+
+        $this->apiToken = defined('SMS_API_TOKEN') && SMS_API_TOKEN
+            ? SMS_API_TOKEN
+            : 'b3372e928050d30de930b74a8bf86321b21ccc74';
+
+        $this->sender = defined('SMS_SENDER') && SMS_SENDER
+            ? SMS_SENDER
+            : 'BEN & SOF Dormitory';
     }
 
     /**

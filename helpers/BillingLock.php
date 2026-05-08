@@ -29,6 +29,30 @@ function isBillingLockedByDate($dueDate)
 }
 
 /**
+ * Determine if a billing record should be locked based on its status.
+ * Settled bills are immutable to preserve data integrity.
+ *
+ * @param string|null $status
+ * @return bool
+ */
+function isBillingLockedByStatus($status)
+{
+    return strcasecmp(trim((string)$status), 'Settled') === 0;
+}
+
+/**
+ * Determine if a billing record is locked based on due date or status.
+ *
+ * @param string|null $dueDate
+ * @param string|null $status
+ * @return bool
+ */
+function isBillingLocked($dueDate, $status)
+{
+    return isBillingLockedByDate($dueDate) || isBillingLockedByStatus($status);
+}
+
+/**
  * Check lock status of a billing record by ID using the database.
  *
  * @param mysqli $conn
@@ -41,7 +65,7 @@ function isBillingRecordLocked($conn, $billId)
         return false;
     }
 
-    $stmt = $conn->prepare("SELECT due_date FROM billing WHERE bill_id = ?");
+    $stmt = $conn->prepare("SELECT due_date, status FROM billing WHERE bill_id = ?");
     if (!$stmt) {
         return false;
     }
@@ -56,6 +80,6 @@ function isBillingRecordLocked($conn, $billId)
         return false;
     }
 
-    return isBillingLockedByDate($row['due_date'] ?? null);
+    return isBillingLocked($row['due_date'] ?? null, $row['status'] ?? null);
 }
 ?>

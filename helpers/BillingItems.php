@@ -98,16 +98,37 @@ if (!function_exists('replaceBillingUtilityItems')) {
     {
         $conn->query("DELETE FROM billing_utility_items WHERE bill_id = " . intval($billId));
         if (empty($items)) {
+            $stmt = $conn->prepare("UPDATE billing SET utility_fee = '[]', utility_amount = '[]' WHERE bill_id = ?");
+            if ($stmt) {
+                $stmt->bind_param("i", $billId);
+                $stmt->execute();
+                $stmt->close();
+            }
             return;
         }
+        
+        $labels = [];
+        $amounts = [];
+
         $stmt = $conn->prepare("INSERT INTO billing_utility_items (bill_id, label, amount) VALUES (?, ?, ?)");
         foreach ($items as $item) {
             $label = trim((string)($item['label'] ?? ''));
             $amount = (float)($item['amount'] ?? 0);
             $stmt->bind_param("isd", $billId, $label, $amount);
             $stmt->execute();
+            $labels[] = $label;
+            $amounts[] = $amount;
         }
         $stmt->close();
+
+        $labelsJson = json_encode($labels);
+        $amountsJson = json_encode($amounts);
+        $updateStmt = $conn->prepare("UPDATE billing SET utility_fee = ?, utility_amount = ? WHERE bill_id = ?");
+        if ($updateStmt) {
+            $updateStmt->bind_param("ssi", $labelsJson, $amountsJson, $billId);
+            $updateStmt->execute();
+            $updateStmt->close();
+        }
     }
 }
 
@@ -116,16 +137,37 @@ if (!function_exists('replaceBillingAdditionalItems')) {
     {
         $conn->query("DELETE FROM billing_additional_items WHERE bill_id = " . intval($billId));
         if (empty($items)) {
+            $stmt = $conn->prepare("UPDATE billing SET add_charges = '[]', add_amount = '[]' WHERE bill_id = ?");
+            if ($stmt) {
+                $stmt->bind_param("i", $billId);
+                $stmt->execute();
+                $stmt->close();
+            }
             return;
         }
+        
+        $labels = [];
+        $amounts = [];
+
         $stmt = $conn->prepare("INSERT INTO billing_additional_items (bill_id, label, amount) VALUES (?, ?, ?)");
         foreach ($items as $item) {
             $label = trim((string)($item['label'] ?? ''));
             $amount = (float)($item['amount'] ?? 0);
             $stmt->bind_param("isd", $billId, $label, $amount);
             $stmt->execute();
+            $labels[] = $label;
+            $amounts[] = $amount;
         }
         $stmt->close();
+
+        $labelsJson = json_encode($labels);
+        $amountsJson = json_encode($amounts);
+        $updateStmt = $conn->prepare("UPDATE billing SET add_charges = ?, add_amount = ? WHERE bill_id = ?");
+        if ($updateStmt) {
+            $updateStmt->bind_param("ssi", $labelsJson, $amountsJson, $billId);
+            $updateStmt->execute();
+            $updateStmt->close();
+        }
     }
 }
 
@@ -181,7 +223,7 @@ if (!function_exists('composeReminderSMSMessage')) {
             'Ben and Sof Dormitory',
             'Purok 1A, Mati, San Miguel, ZDS',
             '',
-            'Payment Reminder',
+            'Billing Notice',
             '',
             "Hi {$tenantName},",
             "Room: {$roomNumber}",
@@ -189,7 +231,7 @@ if (!function_exists('composeReminderSMSMessage')) {
             '',
             'Charges:',
             '- Base Rent: PHP ' . number_format($baseRent, 2),
-            '- Interest: PHP ' . number_format($interest, 2),
+            '- Late Payment Charge: PHP ' . number_format($interest, 2),
         ];
 
         $lines = array_merge($lines, $utilityLines, $additionalLines);

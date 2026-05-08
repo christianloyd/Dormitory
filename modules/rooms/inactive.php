@@ -4,6 +4,7 @@
  * Path: /modules/rooms/inactive.php
  */
 require_once '../../includes/auth_check.php';
+require_once '../../helpers/TenantAssignments.php';
 
 // Fetch all inactive rooms
 $inactiveResult = $conn->query("SELECT * FROM rooms WHERE record_status='Inactive' ORDER BY room_number ASC");

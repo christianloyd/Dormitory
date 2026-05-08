@@ -185,7 +185,7 @@ body, html {
                             <th>Base Rent</th>
                             <th>Utility Fee</th>
                             <th>Additional Charges</th>
-                            <th>Interest</th>
+                            <th>Late Payment Charge</th>
                             <th>Total Amount</th>
                             <th>Payment Amount</th>
                             <th>Credit Balance</th>

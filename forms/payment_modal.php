@@ -90,12 +90,50 @@ function confirmPayment<?php echo $row['bill_id']; ?>(event) {
       const paymentModalInstance = bootstrap.Modal.getInstance(paymentModalEl) || new bootstrap.Modal(paymentModalEl);
       paymentModalInstance.hide();
 
-      if (data.sms_preview) {
-        showPaymentPreview<?php echo $row['bill_id']; ?>(data);
+      const confirmation = data.confirmation || null;
+      const baseMessage = data.message || 'Payment recorded successfully.';
+
+      if (confirmation) {
+        const icon = confirmation.success ? 'success' : 'warning';
+        let html = '<div class="text-start">';
+        const headline = confirmation.message || baseMessage;
+        html += '<p class="mb-2"><strong>' + escapeHtml<?php echo $row['bill_id']; ?>(headline) + '</strong></p>';
+
+        if (confirmation.sms_preview) {
+          html += '<pre class="bg-light p-3 border" style="white-space: pre-wrap;">' +
+            escapeHtml<?php echo $row['bill_id']; ?>(confirmation.sms_preview) + '</pre>';
+          const charCount = confirmation.character_count || confirmation.characterCount || 0;
+          const segments = confirmation.segments || Math.max(1, Math.ceil(charCount / 157));
+          html += '<p class="small text-muted mb-0">Characters: ' + charCount + ' · Segments: ' + segments + '</p>';
+        }
+
+        if (confirmation.sms_results && confirmation.sms_results.length) {
+          html += '<div class="mt-3"><h6>Delivery Status</h6><ul class="mb-0" style="font-size:0.9rem;">';
+          confirmation.sms_results.forEach(result => {
+            const statusIcon = result.status === 'sent'
+              ? '<i class="fas fa-check-circle text-success"></i>'
+              : '<i class="fas fa-times-circle text-danger"></i>';
+            const line = statusIcon + ' ' +
+              escapeHtml<?php echo $row['bill_id']; ?>(result.type || 'Recipient') +
+              ' (' + escapeHtml<?php echo $row['bill_id']; ?>(result.number || '-') + '): ' +
+              escapeHtml<?php echo $row['bill_id']; ?>(result.message || '');
+            html += '<li>' + line + '</li>';
+          });
+          html += '</ul></div>';
+        }
+
+        html += '</div>';
+
+        Swal.fire({
+          title: confirmation.success ? 'Payment & SMS Sent' : 'Payment Saved',
+          html: html,
+          icon: icon,
+          width: 600
+        }).then(() => window.location.reload());
       } else {
         Swal.fire({
           title: 'Payment Saved',
-          text: data.message || 'Payment recorded successfully.',
+          text: baseMessage,
           icon: 'success'
         }).then(() => window.location.reload());
       }
@@ -112,84 +150,6 @@ function confirmPayment<?php echo $row['bill_id']; ?>(event) {
 
   return false;
 }
-
-function showPaymentPreview<?php echo $row['bill_id']; ?>(data) {
-  const previewHtml = `
-    <div class="text-start">
-      <p class="mb-2">SMS preview for <strong>${escapeHtml<?php echo $row['bill_id']; ?>(data.tenant_name || '')}</strong>:</p>
-      <pre class="bg-light p-3 border" style="white-space: pre-wrap;">${escapeHtml<?php echo $row['bill_id']; ?>(data.sms_preview)}</pre>
-      <p class="small text-muted mb-0">Characters: ${data.character_count || 0} · Segments: ${data.segments || 1}</p>
-    </div>
-  `;
-
-  Swal.fire({
-    title: 'Send Payment Confirmation?',
-    html: previewHtml,
-    icon: 'info',
-    showCancelButton: true,
-    confirmButtonText: 'Send SMS',
-    cancelButtonText: 'Skip SMS',
-    confirmButtonColor: '#198754',
-    cancelButtonColor: '#6c757d',
-    allowOutsideClick: false,
-    width: 600
-  }).then(result => {
-    if (result.isConfirmed) {
-      sendPaymentConfirmation<?php echo $row['bill_id']; ?>(data.bill_id);
-    } else {
-      Swal.fire({
-        title: 'Payment Saved',
-        text: 'Payment recorded without sending SMS.',
-        icon: 'success'
-      }).then(() => window.location.reload());
-    }
-  });
-}
-
-function sendPaymentConfirmation<?php echo $row['bill_id']; ?>(billId) {
-  Swal.fire({
-    title: 'Sending SMS...',
-    allowOutsideClick: false,
-    didOpen: () => {
-      Swal.showLoading();
-    }
-  });
-
-  fetch('send_payment_confirm.php', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ bill_id: billId })
-  })
-    .then(response => response.json())
-    .then(data => {
-      if (!data.success) {
-        throw new Error(data.message || 'Failed to send confirmation SMS.');
-      }
-
-      Swal.fire({
-        title: 'SMS Sent',
-        html: `
-          <div class="text-start">
-            <p class="mb-2"><strong>${escapeHtml<?php echo $row['bill_id']; ?>(data.message)}</strong></p>
-            <pre class="bg-light p-3 border" style="white-space: pre-wrap;">${escapeHtml<?php echo $row['bill_id']; ?>(data.sms_preview)}</pre>
-            <p class="small text-muted mb-0">Characters: ${data.character_count || 0} · Segments: ${Math.max(1, Math.ceil((data.character_count || 0) / 157))}</p>
-          </div>
-        `,
-        icon: 'success',
-        width: 600
-      }).then(() => window.location.reload());
-    })
-    .catch(error => {
-      Swal.fire({
-        title: 'SMS Error',
-        html: 'Failed to send confirmation:<br>' + escapeHtml<?php echo $row['bill_id']; ?>(error.message || error),
-        icon: 'error'
-      }).then(() => window.location.reload());
-    });
-}
-
 function escapeHtml<?php echo $row['bill_id']; ?>(text) {
   if (!text) return '';
   return text

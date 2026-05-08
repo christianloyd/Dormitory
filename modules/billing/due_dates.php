@@ -9,17 +9,60 @@ $due_tenants = [];
 $date = '';
 $start_date = '';
 $end_date = '';
+$tenant_filter_id = isset($_GET['tenant_id']) ? intval($_GET['tenant_id']) : 0;
 
+// Helper: fetch active tenants with their room assignments
+$stmtTenant = $conn->prepare("
+    SELECT 
+        t.tenant_id,
+        t.tenant_name,
+        t.profile_pic,
+        t.date_started,
+        tr.room_id,
+        r.room_number
+    FROM tenants t
+    LEFT JOIN tenant_rooms tr 
+        ON tr.tenant_id = t.tenant_id AND tr.released_at IS NULL
+    LEFT JOIN rooms r ON r.room_id = tr.room_id
+    WHERE t.status = 'Active'" . ($tenant_filter_id > 0 ? " AND t.tenant_id = ?" : ''));
+
+if ($stmtTenant) {
+    if ($tenant_filter_id > 0) {
+        $stmtTenant->bind_param('i', $tenant_filter_id);
+    }
+    $stmtTenant->execute();
+    $tenantResult = $stmtTenant->get_result();
+} else {
+    $tenantResult = false;
+}
+
+// Rebuild tenant rows keyed by tenant_id including room list
+$tenantsData = [];
+if ($tenantResult) {
+    while ($row = $tenantResult->fetch_assoc()) {
+        $id = (int)$row['tenant_id'];
+        if (!isset($tenantsData[$id])) {
+            $tenantsData[$id] = [
+                'tenant_id' => $id,
+                'tenant_name' => $row['tenant_name'],
+                'profile_pic' => $row['profile_pic'],
+                'date_started' => $row['date_started'],
+                'rooms' => []
+            ];
+        }
+        if (!empty($row['room_number'])) {
+            $tenantsData[$id]['rooms'][] = $row['room_number'];
+        }
+    }
+    $stmtTenant->close();
+}
+
+// Fetch tenants depending on filter
 if (isset($_GET['date'])) {
     // Single date
     $date = $_GET['date'];
 
-    $tenants = $conn->query("SELECT t.tenant_id, t.tenant_name, t.profile_pic, r.room_number, t.date_started
-                         FROM tenants t
-                         JOIN rooms r ON t.room_id = r.room_id
-                         WHERE t.status = 'Active'");
-
-    while ($t = $tenants->fetch_assoc()) {
+    foreach ($tenantsData as $t) {
         $start_day = date('d', strtotime($t['date_started']));
         $tenant_month = date('m', strtotime($date));
         $tenant_year = date('Y', strtotime($date));
@@ -35,15 +78,7 @@ if (isset($_GET['date'])) {
     $start_date = $_GET['start_date'];
     $end_date   = $_GET['end_date'];
 
-    $stmt = $conn->prepare("SELECT t.tenant_id, t.tenant_name, t.profile_pic, r.room_number, t.date_started
-                        FROM tenants t
-                        JOIN rooms r ON t.room_id = r.room_id
-                        WHERE t.status = 'Active'");
-
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    while ($t = $result->fetch_assoc()) {
+    foreach ($tenantsData as $t) {
         $day = date('d', strtotime($t['date_started']));
         $month = date('m', strtotime($start_date));
         $year  = date('Y', strtotime($start_date));
@@ -54,7 +89,30 @@ if (isset($_GET['date'])) {
         }
     }
 }
+
+// --- GROUP TENANTS BY ID WITH ROOMS ---
+$groupedTenants = [];
+foreach ($due_tenants as $t) {
+    $id = $t['tenant_id'];
+    if (!isset($groupedTenants[$id])) {
+        $groupedTenants[$id] = $t;
+        $groupedTenants[$id]['rooms'] = isset($t['rooms']) && is_array($t['rooms']) ? $t['rooms'] : [];
+    } else {
+        if (isset($t['rooms']) && is_array($t['rooms'])) {
+            $groupedTenants[$id]['rooms'] = array_merge($groupedTenants[$id]['rooms'], $t['rooms']);
+        }
+    }
+}
+
+// Ensure room numbers unique and sorted for display
+foreach ($groupedTenants as &$tenant) {
+    if (!empty($tenant['rooms'])) {
+        $tenant['rooms'] = array_values(array_unique($tenant['rooms']));
+    }
+}
+unset($tenant);
 ?>
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -62,6 +120,7 @@ if (isset($_GET['date'])) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* --- STYLES SAME AS YOUR EXISTING --- */
         body { margin:0; font-family: Arial, sans-serif; display:flex; background-color: #f0f4f3; }
         .main-content { margin-left:225px; padding:30px; background-color:#fff; min-height:100vh; width:100%; border-left:2px solid #5A7D7C; }
         h2 { margin-bottom:25px; font-weight:bold; color:#5A7D7C; }
@@ -76,127 +135,19 @@ if (isset($_GET['date'])) {
         .btn-primary:hover { background-color:#3d5a59; }
         .btn-secondary { background-color:#ccc; border:none; font-size:13px; padding:6px 12px; transition:0.3s; }
         .btn-secondary:hover { background-color:#aaa; }
-        .back-btn { margin-top:20px; }
-        body, html { width: 100%; height: 100%; overflow: hidden; }
-        .back-btn {
-    margin-top: 15px;
-    text-align: left; /* optional: para right-aligned */
-    position: sticky;
-    bottom: 0;
-    background-color: #fff; /* para dili overlay sa table */
-    padding: 10px 0;
-}
-.back-btn {
-    position: fixed;
-    bottom: 20px;
-    left: 260px; /* optional alignment */
-}
-
-
-        /* Scrollable table wrapper */
-        .table-wrapper {
-            max-height: 500px; /* fixed height for vertical scroll */
-            overflow-y: auto;
-            width: 100%;
-            border-radius: 8px;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
-        }
-
-        /* Custom vertical scroll bar */
-        .table-wrapper::-webkit-scrollbar {
-            width: 8px;
-        }
-        .table-wrapper::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-        .table-wrapper::-webkit-scrollbar-thumb {
-            background: #5A7D7C;
-            border-radius: 4px;
-        }
-        .table-wrapper::-webkit-scrollbar-thumb:hover {
-            background: #3d5a59;
-        }
-
-       .table-wrapper {
-    max-height: 600px; /* fixed height for vertical scroll */
-    overflow-y: auto;
-    width: 100%;
-    border-radius: 8px;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
-    margin-top: 30px; /* ipa-down ang table 20px gikan sa taas */
-}
-        /* Responsive adjustments */
-        @media(max-width:768px) {
-            .main-content { padding:15px; }
-            table { font-size:12px; }
-            .btn-primary, .btn-secondary { font-size:11px; padding:4px 10px; }
-        }
-        .table-wrapper table thead th {
-    background-color: #5A7D7C !important;
-    color: #fff !important;
-    text-align: center;
-    font-size: 15px;
-    font-weight: bold;
-    padding: 15px;
-}
-.search-container {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 10px;
-}
-
-.search-container input {
-    padding: 6px 12px;
-    font-size: 14px;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-    width: 250px;
-}
-.search-container {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 5px; /* spacing between input and button */
-    margin-bottom: 10px;
-}
-
-.search-container input {
-    padding: 6px 12px;
-    font-size: 14px;
-    border-radius: 4px;
-    border: 1px solid #5A7D7C;
-    outline: none;
-    width: 250px;
-    color: #fff;
-    background-color: #f6f6f6ff;
-    transition: 0.3s;
-}
-
-.search-container input::placeholder {
-    color: #e0e0e0;
-}
-
-.search-container input:focus {
-    background-color: #3d5a59;
-    border-color: #3d5a59;
-}
-
-.search-container button {
-    padding: 6px 12px;
-    font-size: 14px;
-    border: none;
-    border-radius: 4px;
-    background-color: #5A7D7C;
-    color: #fff;
-    cursor: pointer;
-    transition: 0.3s;
-}
-
-.search-container button:hover {
-    background-color: #3d5a59;
-}
-
+        .back-btn { margin-top:20px; position: fixed; bottom: 20px; left: 260px; background-color:#fff; padding:10px 0; }
+        .table-wrapper { max-height:600px; overflow-y:auto; width:100%; border-radius:8px; box-shadow:0 3px 8px rgba(0,0,0,0.1); margin-top:30px; }
+        .table-wrapper::-webkit-scrollbar { width: 8px; }
+        .table-wrapper::-webkit-scrollbar-track { background: #f1f1f1; border-radius:4px; }
+        .table-wrapper::-webkit-scrollbar-thumb { background: #5A7D7C; border-radius:4px; }
+        .table-wrapper::-webkit-scrollbar-thumb:hover { background:#3d5a59; }
+        .table-wrapper table thead th { background-color:#5A7D7C !important; color:#fff !important; text-align:center; font-size:15px; font-weight:bold; padding:15px; }
+        .search-container { display:flex; justify-content:flex-end; align-items:center; gap:5px; margin-bottom:10px; }
+        .search-container input { padding:6px 12px; font-size:14px; border-radius:4px; border:1px solid #5A7D7C; outline:none; width:250px; color:#000; background-color:#f6f6f6ff; transition:0.3s; }
+        .search-container input::placeholder { color:#999; }
+        .search-container input:focus { background-color:#fff; border-color:#3d5a59; }
+        .search-container button { padding:6px 12px; font-size:14px; border:none; border-radius:4px; background-color:#5A7D7C; color:#fff; cursor:pointer; transition:0.3s; }
+        .search-container button:hover { background-color:#3d5a59; }
     </style>
 </head>
 <body>
@@ -205,29 +156,21 @@ if (isset($_GET['date'])) {
 <div class="main-content">
     <?php
     if (!empty($date)) {
-        $formattedDate = date("F d, Y", strtotime($date));
-        echo "<h2>Tenants Due on $formattedDate</h2>";
+        echo "<h2>Tenants Due on ".date("F d, Y", strtotime($date))."</h2>";
     } elseif (!empty($start_date) && !empty($end_date)) {
-        $formattedStart = date("F d, Y", strtotime($start_date));
-        $formattedEnd   = date("F d, Y", strtotime($end_date));
-        echo "<h2>Tenants Due from $formattedStart to $formattedEnd</h2>";
+        echo "<h2>Tenants Due from ".date("F d, Y", strtotime($start_date))." to ".date("F d, Y", strtotime($end_date))."</h2>";
     } else {
         echo "<h2>Tenants Due</h2>";
     }
     ?>
 
-    <?php if (empty($due_tenants)) : ?>
+    <?php if (empty($groupedTenants)) : ?>
         <div class="alert alert-info">No tenants have billing due for this selection.</div>
-    <?php else : ?>
-
+    <?php else: ?>
         <div class="search-container">
-             <button type="submit" class="btn-search">Search</button>
-    <input type="text" id="tenantSearch" placeholder="Search tenant name...">
-   
-</div>
+            <input type="text" id="tenantSearch" placeholder="Search tenant name...">
+        </div>
 
-
-        <!-- Scrollable table wrapper -->
         <div class="table-wrapper">
             <table class="table table-bordered align-middle">
                 <thead>
@@ -240,57 +183,51 @@ if (isset($_GET['date'])) {
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($due_tenants as $tenant) : ?>
-                        <tr>
-                            <td>
-                                <?php if (!empty($tenant['profile_pic'])): ?>
-                                    <img src="<?php echo BASE_PATH . '/' . htmlspecialchars($tenant['profile_pic']); ?>" class="profile-pic" alt="Profile">
-                                <?php else: ?>
-                                    <i class="fa-solid fa-circle-user"></i>
-                                <?php endif; ?>
-                            </td>
-                            <td><?php echo htmlspecialchars($tenant['tenant_name']); ?></td>
-                            <td><?php echo htmlspecialchars($tenant['room_number']); ?></td>
-                            <td><?php echo htmlspecialchars(date("F d, Y", strtotime($tenant['date_started']))); ?></td>
-                            <td>
-                                <?php 
-                                $viewBillUrl = "view.php?tenant_id=" . $tenant['tenant_id'];
-                                if (!empty($date)) {
-                                    $viewBillUrl .= "&date=" . urlencode($date);
-                                } elseif (!empty($start_date) && !empty($end_date)) {
-                                    $viewBillUrl .= "&start_date=" . urlencode($start_date) . "&end_date=" . urlencode($end_date);
-                                }
-                                ?>
-                                <a href="<?php echo $viewBillUrl; ?>" class="btn btn-primary btn-sm">View Bills</a>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
+                <?php foreach ($groupedTenants as $tenant): ?>
+                    <tr>
+                        <td>
+                            <?php if (!empty($tenant['profile_pic'])): ?>
+                                <img src="<?php echo BASE_PATH . '/' . htmlspecialchars($tenant['profile_pic']); ?>" class="profile-pic" alt="Profile">
+                            <?php else: ?>
+                                <i class="fa-solid fa-circle-user"></i>
+                            <?php endif; ?>
+                        </td>
+                        <td><?php echo htmlspecialchars($tenant['tenant_name']); ?></td>
+                        <td><?php echo htmlspecialchars(implode(',', $tenant['rooms'])); ?></td>
+                        <td><?php echo htmlspecialchars(date("F d, Y", strtotime($tenant['date_started']))); ?></td>
+                        <td>
+                            <?php 
+                            $viewBillUrl = "view.php?tenant_id=" . $tenant['tenant_id'];
+                            if (!empty($date)) {
+                                $viewBillUrl .= "&date=" . urlencode($date);
+                            } elseif (!empty($start_date) && !empty($end_date)) {
+                                $viewBillUrl .= "&start_date=" . urlencode($start_date) . "&end_date=" . urlencode($end_date);
+                            }
+                            ?>
+                            <a href="<?php echo $viewBillUrl; ?>" class="btn btn-primary btn-sm">View Bills</a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
     <?php endif; ?>
 
-    <!-- Back Button -->
     <div class="back-btn">
         <a href="<?= BASE_PATH ?>/modules/billing/" class="btn btn-secondary">Back to Calendar</a>
     </div>
 </div>
+
 <script>
     const searchInput = document.getElementById('tenantSearch');
     searchInput.addEventListener('keyup', function() {
         const filter = searchInput.value.toLowerCase();
         const rows = document.querySelectorAll('.table-wrapper tbody tr');
-
         rows.forEach(row => {
             const tenantName = row.cells[1].textContent.toLowerCase();
-            if (tenantName.indexOf(filter) > -1) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
+            row.style.display = tenantName.includes(filter) ? '' : 'none';
         });
     });
 </script>
-
 </body>
 </html>

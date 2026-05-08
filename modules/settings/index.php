@@ -11,6 +11,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Settings</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -67,10 +68,10 @@ $currentPage = basename($_SERVER['PHP_SELF']);
             display: block;
         }
         body, html {
-    width: 100%;
-    height: 100%;
-    overflow: hidden; /* aron dili mo-scroll */
-}
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
     </style>
 </head>
 <body>
@@ -111,60 +112,69 @@ $currentPage = basename($_SERVER['PHP_SELF']);
             <div id="backup" class="settings-section">
                  <h2>Backup & Restore</h2>
 
-            <!-- Export (Backup) -->
-            <div class="mb-4">
-            <h5>Export Database</h5>
-        <form method="POST" action="backup_restore.php">
-            <input type="hidden" name="action" value="export">
-            <button type="submit" class="btn btn-primary">Download Backup</button>
-        </form>
-    </div>
+                <!-- Export (Backup) -->
+                <div class="mb-4">
+                    <h5>Export Database</h5>
+                    <form method="POST" action="backup_restore.php">
+                        <input type="hidden" name="action" value="export">
+                        <button type="submit" class="btn btn-primary">Download Backup</button>
+                    </form>
+                </div>
 
-    <!-- Import (Restore) -->
-    <div>
-        <h5>Import Database</h5>
-        <form method="POST" action="backup_restore.php" enctype="multipart/form-data">
-            <input type="hidden" name="action" value="import">
-            <input type="file" name="sql_file" class="form-control mb-2" required>
-            <button type="submit" class="btn btn-success">Restore Backup</button>
-        </form>
-    </div>
-</div>
+                <!-- Import (Restore) -->
+                <div>
+                    <h5>Import Database</h5>
+                    <form method="POST" action="backup_restore.php" enctype="multipart/form-data">
+                        <input type="hidden" name="action" value="import">
+                        <input type="file" name="sql_file" class="form-control mb-2" required>
+                        <button type="submit" class="btn btn-success">Restore Backup</button>
+                    </form>
+                </div>
+            </div>
 
-<!-- SMS Settings Tab -->
-<div id="sms" class="settings-section">
-    <?php include '../sms/settings.php'; ?>
-</div>
+            <!-- SMS Settings Tab -->
+            <div id="sms" class="settings-section">
+                <?php include '../sms/settings.php'; ?>
+            </div>
 
-<!-- Account Tab -->
-<div id="account" class="settings-section">
-    <h2>Change Username & Password</h2>
-    <form id="update-account-form" method="POST" action="update_account.php">
-        <div class="mb-3">
-            <label class="form-label">Current Password</label>
-            <input type="password" name="current_password" class="form-control" required>
+            <!-- Account Tab -->
+            <div id="account" class="settings-section">
+                <h2>Change Username & Password</h2>
+                <form id="update-account-form" method="POST" action="update_account.php">
+                    <div class="mb-3">
+                        <label class="form-label">Current Password</label>
+                        <input type="password" name="current_password" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">New Username</label>
+                        <input type="text" name="new_username" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">New Password</label>
+                        <input type="password" name="new_password" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-warning">Update Credentials</button>
+                </form>
+                <div id="accountMessage" class="mt-3"></div>
+            </div>
+
         </div>
-        <div class="mb-3">
-            <label class="form-label">New Username</label>
-            <input type="text" name="new_username" class="form-control" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">New Password</label>
-            <input type="password" name="new_password" class="form-control" required>
-        </div>
-        <button type="submit" class="btn btn-warning">Update Credentials</button>
-    </form>
 </div>
-
+</div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
 $(document).ready(function() {
+
     function activateTab(target) {
+        // Remove active from all tab links
         $('.tab-link').removeClass('active');
+        // Add active to clicked tab
         $('.tab-link[data-target="'+target+'"]').addClass('active');
 
+        // Remove active from all sections
         $('.settings-section').removeClass('active');
+        // Show the selected section
         $('#' + target).addClass('active');
 
         // Lazy load tenant only once
@@ -173,29 +183,40 @@ $(document).ready(function() {
                 $('#tenant').data('loaded', true);
             });
         }
+
+        // Update URL hash so refresh keeps same tab
+        history.replaceState(null, '', '#'+target);
     }
 
-    // Tab click
+    // Auto-activate tab based on URL hash
+    const hash = window.location.hash.substring(1);
+    if(hash && $('.tab-link[data-target="'+hash+'"]').length) {
+        activateTab(hash);
+    } else {
+        activateTab('profile'); // default tab
+    }
+
+    // Tab click handler
     $('.tab-link').click(function(e) {
         e.preventDefault();
         const target = $(this).data('target');
         activateTab(target);
     });
 
-    // Auto-activate tab from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const tabParam = urlParams.get('tab');
-    if(tabParam) activateTab(tabParam);
-
     // AJAX: Update account credentials
-    $('#updateAccountForm').submit(function(e){
+    $('#update-account-form').submit(function(e){
         e.preventDefault();
         $.ajax({
             url: 'update_account.php',
             type: 'POST',
             data: $(this).serialize(),
+            dataType: 'json',
             success: function(response){
-                $('#accountMessage').html(response);
+                if(response.status === 'success'){
+                    $('#accountMessage').html('<div class="alert alert-success">'+response.message+'</div>');
+                } else {
+                    $('#accountMessage').html('<div class="alert alert-danger">'+response.message+'</div>');
+                }
             },
             error: function(){
                 $('#accountMessage').html('<div class="alert alert-danger">An error occurred. Try again.</div>');

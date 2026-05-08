@@ -22,9 +22,7 @@ if ($last_due_date) {
     $default_due_date = date('Y-m-d', strtotime("+1 month", strtotime($last_due_date)));
     $billing_exists = true; // last month already exists
 } else {
-    $current_year = date('Y');
-    $current_month = date('m');
-    $default_due_date = date('Y-m-d', strtotime("$current_year-$current_month-$start_day"));
+    $default_due_date = date('Y-m-d', strtotime('+1 month', strtotime($tenant['date_started'])));
     $billing_exists = false;
 }
 ?>
@@ -146,8 +144,7 @@ document.addEventListener("DOMContentLoaded", function() {
     flatpickr("#due_date_picker", {
         dateFormat: "Y-m-d",
         defaultDate: expectedNextMonth,
-        disable: [date => date.getDate() !== startDay],
-        minDate: expectedNextMonth
+        disable: [date => date.getDate() !== startDay]
     });
 });
 
@@ -183,6 +180,17 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 
 // Step 11–14: Confirmation + AJAX
+const escapeHtml = (text) => {
+    if (!text) return '';
+    return text
+        .toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+};
+
 document.getElementById('addBillForm').addEventListener('submit', function(e){
     e.preventDefault();
 
@@ -203,37 +211,48 @@ document.getElementById('addBillForm').addEventListener('submit', function(e){
             .then(res => res.json())
             .then(data => {
                 if(data.success){
+                    const notice = data.billing_notice || {};
+
+                    const details = [];
+                    details.push('<p class="mb-2">Billing added successfully.</p>');
+
+                    if (notice.message) {
+                        details.push('<p class="mb-2"><strong>Status:</strong> ' + escapeHtml(notice.message) + '</p>');
+                    }
+
+                    if (Array.isArray(notice.sms_results) && notice.sms_results.length) {
+                        const items = notice.sms_results.map(result => {
+                            const type = escapeHtml(result.type || 'Recipient');
+                            const number = escapeHtml(result.number || 'N/A');
+                            const statusMsg = escapeHtml(result.message || result.status || '');
+                            const statusClass = (result.status === 'sent') ? 'text-success' : 'text-danger';
+                            const icon = (result.status === 'sent') ? 'fa-check-circle' : 'fa-times-circle';
+                            return `<li><i class="fas ${icon} ${statusClass}"></i> ${type} (${number}): ${statusMsg}</li>`;
+                        }).join('');
+                        details.push('<div class="text-start"><p class="mb-1"><strong>SMS Delivery</strong></p><ul class="mb-0 ps-3">' + items + '</ul></div>');
+                    }
+
+                    if (notice.sms_preview) {
+                        details.push('<div class="text-start mt-3"><p class="mb-1"><strong>SMS Preview</strong></p><pre class="bg-light p-3 border" style="white-space: pre-wrap;">' + escapeHtml(notice.sms_preview) + '</pre></div>');
+                    }
+
+                    const noticeIcon = notice.success ? 'success' : 'info';
+                    const noticeTitle = notice.success ? 'Billing Notice Sent' : 'Billing Added';
+
                     Swal.fire({
-                        title: 'Success!',
-                        text: 'Billing added successfully!',
-                        icon: 'success',
+                        title: noticeTitle,
+                        html: details.join(''),
+                        icon: noticeIcon,
                         confirmButtonText: 'OK',
-                        confirmButtonColor: '#198754'
+                        confirmButtonColor: '#198754',
+                        width: 600
                     }).then(() => {
-                        Swal.fire({
-                            title: 'Send Reminder?',
-                            text: `Do you want to send a payment reminder to Tenant ${data.tenant_name} and Guardian ${data.guardian_name}?`,
-                            icon: 'question',
-                            showCancelButton: true,
-                            confirmButtonText: 'Yes, send reminder',
-                            cancelButtonText: 'No',
-                            confirmButtonColor: '#198754',
-                            cancelButtonColor: '#6c757d'
-                        }).then((reminderResult) => {
-                            if(reminderResult.isConfirmed){
-                                Swal.fire({
-                                    title: 'Sent!',
-                                    text: 'Reminder sent!',
-                                    icon: 'success',
-                                    timer: 1500,
-                                    showConfirmButton: false
-                                });
-                            }
-                            const modalEl = document.getElementById('addBillModal');
-                            const modal = bootstrap.Modal.getInstance(modalEl);
+                        const modalEl = document.getElementById('addBillModal');
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) {
                             modal.hide();
-                            window.location.href = `view.php?tenant_id=${data.tenant_id}`;
-                        });
+                        }
+                        window.location.href = `view.php?tenant_id=${data.tenant_id}`;
                     });
                 } else {
                     Swal.fire({

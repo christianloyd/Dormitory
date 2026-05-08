@@ -5,10 +5,102 @@
  */
 require_once '../../includes/auth_check.php';
 require_once __DIR__ . '/../../helpers/BillingItems.php';
+require_once __DIR__ . '/../../helpers/TenantAssignments.php';
 
 $currentMonth = date('m');
 $currentYear  = date('Y');
 $currentMonthName = date('F'); // Example: September
+
+$incomeMonthOptions = [
+    1 => 'January',
+    2 => 'February',
+    3 => 'March',
+    4 => 'April',
+    5 => 'May',
+    6 => 'June',
+    7 => 'July',
+    8 => 'August',
+    9 => 'September',
+    10 => 'October',
+    11 => 'November',
+    12 => 'December',
+];
+
+$selectedIncomeMonth = isset($_GET['income_month']) && $_GET['income_month'] !== ''
+    ? max(1, min(12, (int)$_GET['income_month']))
+    : null;
+$selectedIncomeYear = isset($_GET['income_year']) && $_GET['income_year'] !== ''
+    ? (int)$_GET['income_year']
+    : null;
+
+$incomeYearOptions = [];
+$incomeYearsResult = $conn->query(
+    "SELECT DISTINCT YEAR(due_date) AS year_value
+     FROM billing
+     WHERE payment_amount > 0 AND due_date IS NOT NULL
+     ORDER BY year_value DESC"
+);
+
+if ($incomeYearsResult) {
+    while ($yearRow = $incomeYearsResult->fetch_assoc()) {
+        $yearValue = isset($yearRow['year_value']) ? (int)$yearRow['year_value'] : null;
+        if ($yearValue) {
+            $incomeYearOptions[] = $yearValue;
+        }
+    }
+    $incomeYearsResult->free();
+}
+
+if (empty($incomeYearOptions)) {
+    $incomeYearOptions[] = (int)$currentYear;
+}
+
+$incomeFilterLabel = 'All Time';
+if ($selectedIncomeMonth !== null && $selectedIncomeYear !== null) {
+    $monthName = $incomeMonthOptions[$selectedIncomeMonth] ?? ('Month ' . $selectedIncomeMonth);
+    $incomeFilterLabel = $monthName . ' ' . $selectedIncomeYear;
+} elseif ($selectedIncomeMonth !== null) {
+    $monthName = $incomeMonthOptions[$selectedIncomeMonth] ?? ('Month ' . $selectedIncomeMonth);
+    $incomeFilterLabel = $monthName . ' (All Years)';
+} elseif ($selectedIncomeYear !== null) {
+    $incomeFilterLabel = 'Year ' . $selectedIncomeYear;
+}
+
+$filterClausesNoAlias = [];
+if ($selectedIncomeMonth !== null) {
+    $filterClausesNoAlias[] = 'MONTH(due_date) = ' . $selectedIncomeMonth;
+}
+if ($selectedIncomeYear !== null) {
+    $filterClausesNoAlias[] = 'YEAR(due_date) = ' . $selectedIncomeYear;
+}
+
+$incomeWhere = 'payment_amount > 0';
+if (!empty($filterClausesNoAlias)) {
+    $incomeWhere .= ' AND ' . implode(' AND ', $filterClausesNoAlias);
+}
+
+$totalIncome = 0.0;
+$incomeSql = "SELECT SUM(payment_amount) AS total_income FROM billing WHERE $incomeWhere";
+$incomeResult = $conn->query($incomeSql);
+if ($incomeResult) {
+    $incomeRow = $incomeResult->fetch_assoc();
+    if ($incomeRow && $incomeRow['total_income'] !== null) {
+        $totalIncome = (float)$incomeRow['total_income'];
+    }
+    $incomeResult->free();
+}
+
+$filterClausesWithAlias = [];
+if ($selectedIncomeMonth !== null) {
+    $filterClausesWithAlias[] = 'MONTH(b.due_date) = ' . $selectedIncomeMonth;
+}
+if ($selectedIncomeYear !== null) {
+    $filterClausesWithAlias[] = 'YEAR(b.due_date) = ' . $selectedIncomeYear;
+}
+$dueDateFilterSql = '';
+if (!empty($filterClausesWithAlias)) {
+    $dueDateFilterSql = ' AND ' . implode(' AND ', $filterClausesWithAlias);
+}
 
 // ====== Stats ======
 $tenantsCount = $conn->query("SELECT COUNT(*) AS count FROM tenants WHERE status='Active'")->fetch_assoc()['count'];
@@ -49,9 +141,7 @@ $query = "
     INNER JOIN rooms r ON t.room_id = r.room_id
     WHERE 
         b.payment_amount > 0
-        AND t.status = 'Active'
-        AND MONTH(b.due_date) = $currentMonth 
-        AND YEAR(b.due_date) = $currentYear
+        AND t.status = 'Active'" . $dueDateFilterSql . "
     ORDER BY b.due_date ASC
 ";
 
@@ -93,42 +183,14 @@ while ($row = $res->fetch_assoc()) {
     }
 }
 
-// ====== Total Income ======
-$totalIncome = 0;
-$settledCount = $partialCount = $pendingCount = 0;
-foreach ($paidTenants as $p) {
-    $totalIncome += floatval($p['payment_amount']);
-    if ($p['status'] == "Settled") $settledCount++;
-    elseif ($p['status'] == "Partial") $partialCount++;
-    else $pendingCount++;
-}
-
-
-// Rooms Occupied (full rooms)
-$roomsOccupiedRes = $conn->query("
-    SELECT COUNT(*) AS count FROM (
-        SELECT r.room_id, r.capacity, COUNT(t.tenant_id) AS tenants_count
-        FROM rooms r
-        LEFT JOIN tenants t ON r.room_id = t.room_id AND t.status = 'Active'
-        WHERE r.record_status = 'Active'
-        GROUP BY r.room_id
-        HAVING tenants_count >= r.capacity
-    ) AS occupied_rooms
-");
-$roomsOccupied = $roomsOccupiedRes->fetch_assoc()['count'];
-
-// Rooms Available (not full)
-$roomsAvailableRes = $conn->query("
-    SELECT COUNT(*) AS count FROM (
-        SELECT r.room_id, r.capacity, COUNT(t.tenant_id) AS tenants_count
-        FROM rooms r
-        LEFT JOIN tenants t ON r.room_id = t.room_id AND t.status = 'Active'
-        WHERE r.record_status = 'Active'
-        GROUP BY r.room_id
-        HAVING tenants_count < r.capacity
-    ) AS available_rooms
-");
-$roomsAvailable = $roomsAvailableRes->fetch_assoc()['count'];
+// Rooms Occupied / Available snapshot via tenant_rooms inventory
+$roomInventory = TenantAssignments::getRoomInventory($conn);
+$roomsOccupied = count(array_filter($roomInventory, static function (array $room): bool {
+    return ($room['available_slots'] ?? 0) <= 0;
+}));
+$roomsAvailable = count(array_filter($roomInventory, static function (array $room): bool {
+    return ($room['available_slots'] ?? 0) > 0;
+}));
 
 // ====== Billing Status Function ======
 function getBillingStatus($total, $payment, $prev_credit) {
@@ -147,7 +209,7 @@ function getBillingStatus($total, $payment, $prev_credit) {
 // ====== Compute Settled / Partial / Pending ======
 $settledCount = $partialCount = $pendingCount = 0;
 
-$billingRes = $conn->query("
+$billingRes = $conn->query(" 
     SELECT b.*, 
            IFNULL(bu.utility_total, 0) AS utility_total,
            IFNULL(ba.add_total, 0) AS add_total
@@ -164,11 +226,8 @@ $billingRes = $conn->query("
         GROUP BY bill_id
     ) ba ON ba.bill_id = b.bill_id
     WHERE 
-        MONTH(b.due_date) = $currentMonth
-        AND YEAR(b.due_date) = $currentYear
-        AND t.status = 'Active'
+        t.status = 'Active'" . $dueDateFilterSql . "
 ");
-
 
 while ($bill = $billingRes->fetch_assoc()) {
 
@@ -208,36 +267,40 @@ $notifications = $conn->query("
 $monthlyIncome = array_fill(1, 12, 0);
 
 $sqlIncome = "
-    SELECT MONTH(b.due_date) AS month, SUM(b.payment_amount) AS total 
+    SELECT SUM(b.payment_amount) AS total
     FROM billing b
     INNER JOIN tenants t ON b.tenant_id = t.tenant_id
-    WHERE YEAR(b.due_date) = ? AND t.status = 'Active'
-    GROUP BY MONTH(b.due_date)
+    WHERE 
+        MONTH(b.due_date) = ? 
+        AND YEAR(b.due_date) = ? 
+        AND t.status = 'Active'
 ";
 $stmtIncome = $conn->prepare($sqlIncome);
-$stmtIncome->bind_param("i", $currentYear);
+$stmtIncome->bind_param("ii", $currentMonth, $currentYear);
 $stmtIncome->execute();
 $resIncome = $stmtIncome->get_result();
-while ($row = $resIncome->fetch_assoc()) {
-    $month = (int)$row['month'];
-    $monthlyIncome[$month] = (float)$row['total'];
-}
+$row = $resIncome->fetch_assoc();
+
+$monthlyIncome[$currentMonth] = (float)$row['total'];
+
+
 
 // ====== Monthly Total Tenants Due ======
 $monthlyDue = array_fill(1, 12, 0);
 
-$sqlDue = "SELECT MONTH(due_date) AS month, COUNT(*) AS total_due
-           FROM billing
-           WHERE YEAR(due_date) = ?
-           GROUP BY MONTH(due_date)";
+$sqlDue = "
+    SELECT COUNT(*) AS total_due
+    FROM billing
+    WHERE MONTH(due_date) = ? AND YEAR(due_date) = ?
+";
 $stmtDue = $conn->prepare($sqlDue);
-$stmtDue->bind_param("i", $currentYear);
+$stmtDue->bind_param("ii", $currentMonth, $currentYear);
 $stmtDue->execute();
 $resDue = $stmtDue->get_result();
-while ($row = $resDue->fetch_assoc()) {
-    $month = (int)$row['month'];
-    $monthlyDue[$month] = (int)$row['total_due'];
-}
+$row = $resDue->fetch_assoc();
+
+$monthlyDue[$currentMonth] = (int)$row['total_due'];
+
 
 // ====== Monthly Settled / Partial / Pending ======
 $monthlySettled = array_fill(1, 12, 0);
@@ -296,6 +359,7 @@ while ($row = $resStatus->fetch_assoc()) {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Dashboard - Ben & Sof Dormitory</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -345,8 +409,36 @@ $unreadCount = $conn->query("SELECT COUNT(*) as count FROM notifications WHERE i
 ?>
 
 <!-- Header with Notification & Profile -->
-<div class="d-flex justify-content-between align-items-center mt-0">
-    <h2>Dashboard</h2>
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mt-0 gap-3">
+    <h2 class="mb-0">Dashboard</h2>
+    <form method="get" class="d-flex flex-wrap align-items-center gap-2">
+        <div class="form-floating">
+            <select name="income_month" id="incomeMonth" class="form-select">
+                <option value="">All Months</option>
+                <?php foreach ($incomeMonthOptions as $monthNumber => $monthLabel): ?>
+                    <option value="<?php echo $monthNumber; ?>" <?php echo ($selectedIncomeMonth === $monthNumber) ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($monthLabel); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <label for="incomeMonth">Income Month</label>
+        </div>
+        <div class="form-floating">
+            <select name="income_year" id="incomeYear" class="form-select">
+                <option value="">All Years</option>
+                <?php foreach ($incomeYearOptions as $yearOption): ?>
+                    <option value="<?php echo $yearOption; ?>" <?php echo ($selectedIncomeYear === (int)$yearOption) ? 'selected' : ''; ?>>
+                        <?php echo $yearOption; ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <label for="incomeYear">Income Year</label>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <button type="submit" class="btn btn-primary">Apply</button>
+            <a href="<?= htmlspecialchars($_SERVER['PHP_SELF']); ?>" class="btn btn-outline-secondary">Reset</a>
+        </div>
+    </form>
     <div class="d-flex align-items-center">
         <!-- Notification Icon -->
         <div class="position-relative me-3">
@@ -361,7 +453,7 @@ $unreadCount = $conn->query("SELECT COUNT(*) as count FROM notifications WHERE i
 
         <!-- Profile Box -->
         <div class="profile-box d-flex align-items-center">
-            <img src="<?php echo $header_pic; ?>" class="rounded-circle" width="50" height="50">
+            <img src="<?php echo $header_pic; ?>" class="rounded-circle" width="50" height="50" alt="Admin Profile">
             <span class="ms-2">Admin</span>
         </div>
     </div>

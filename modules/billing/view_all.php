@@ -51,6 +51,7 @@ $bills = [
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>View Bills - <?php echo htmlspecialchars($tenant['tenant_name']); ?></title>
     <link rel="stylesheet" href="../../css/view_bills.css">
 

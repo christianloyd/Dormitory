@@ -4,18 +4,13 @@
  * Path: /modules/rooms/available.php
  */
 require_once '../../includes/auth_check.php';
+require_once '../../helpers/TenantAssignments.php';
 
-// Fetch all available rooms
-$availableQuery = "
-    SELECT r.*, 
-           (r.capacity - COUNT(t.room_id)) AS available
-    FROM rooms r
-    LEFT JOIN tenants t ON r.room_id = t.room_id
-    GROUP BY r.room_id
-    HAVING available > 0
-    ORDER BY r.room_number ASC
-";
-$availableResult = mysqli_query($conn, $availableQuery);
+// Fetch availability snapshot using tenant_rooms occupancy
+$roomInventory = TenantAssignments::getRoomInventory($conn);
+$availableRooms = array_values(array_filter($roomInventory, function (array $room): bool {
+    return ($room['available_slots'] ?? 0) > 0;
+}));
 ?>
 
 <!DOCTYPE html>
@@ -124,27 +119,49 @@ tr:nth-child(even) {
                 </tr>
             </thead>
             <tbody>
-                <?php
-                $hasAvailable = false;
-                while($row = mysqli_fetch_assoc($availableResult)) {
-                    $hasAvailable = true;
-                ?>
-                <tr>
-                    <td><?= htmlspecialchars($row['room_number']) ?></td>
-                    <td><?= htmlspecialchars($row['room_type']) ?></td>
-                    <td><?= $row['capacity'] ?></td>
-                    <td><?= $row['available'] ?></td>
-                    <td><?= $row['upper_deck_count'] ?></td>
-                    <td><?= $row['lower_deck_count'] ?></td>
-                    <td><?= number_format($row['price'],2) ?></td>
-                    <td>Available</td>
-                </tr>
-                <?php
-                }
-                if(!$hasAvailable) {
-                    echo '<tr><td colspan="8">No available rooms found.</td></tr>';
-                }
-                ?>
+                <?php if (!empty($availableRooms)): ?>
+                    <?php foreach ($availableRooms as $room):
+                        $roomNumber = htmlspecialchars($room['room_number'], ENT_QUOTES, 'UTF-8');
+                        $roomType = htmlspecialchars($room['room_type'], ENT_QUOTES, 'UTF-8');
+
+                        $capacity = (int)$room['capacity'];
+                        $upperDecks = (int)$room['upper_deck_count'];
+                        $lowerDecks = (int)$room['lower_deck_count'];
+
+                        $availableSlots = (int)$room['available_slots'];
+                        $upperAvailable = (int)$room['upper_available'];
+                        $lowerAvailable = (int)$room['lower_available'];
+
+                        $upperCapacity = $upperDecks;
+                        $lowerCapacity = $lowerDecks;
+
+                        $upperSummary = $upperDecks > 0
+                            ? sprintf('%d / %d free', $upperAvailable, $upperCapacity)
+                            : '—';
+                        $lowerSummary = $lowerDecks > 0
+                            ? sprintf('%d / %d free', $lowerAvailable, $lowerCapacity)
+                            : '—';
+
+                        if ($room['room_type'] === 'Whole Room') {
+                            $capacity = max(1, $capacity);
+                            $upperSummary = '—';
+                            $lowerSummary = '—';
+                        }
+                    ?>
+                        <tr>
+                            <td><?= $roomNumber ?></td>
+                            <td><?= $roomType ?></td>
+                            <td><?= $capacity ?></td>
+                            <td><?= $availableSlots ?></td>
+                            <td><?= $upperSummary ?></td>
+                            <td><?= $lowerSummary ?></td>
+                            <td><?= number_format((float)$room['price'], 2) ?></td>
+                            <td>Available</td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr><td colspan="8">No available rooms found.</td></tr>
+                <?php endif; ?>
             </tbody>
         </table>
     </div>

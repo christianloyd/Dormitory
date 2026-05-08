@@ -95,3 +95,8 @@ body, html {
     max-height: 300px; /* Adjust to approx 10 options */
     overflow-y: auto;
 }
+.scrollable-select {
+    max-height: 150px;   /* limit height sa visible items */
+    overflow-y: auto;    /* vertical scrollbar kung sobra */
+}
+

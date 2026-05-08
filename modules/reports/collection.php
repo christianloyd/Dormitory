@@ -5,10 +5,14 @@
  */
 require_once "../../includes/auth_check.php";
 
+// Fetch dorm header image for print
+$hdrRow = $conn->query("SELECT setting_value FROM settings WHERE setting_name='header_image'")->fetch_assoc();
+$hdrPic = $hdrRow ? BASE_PATH . '/' . $hdrRow['setting_value'] : BASE_PATH . '/uploads/default_header.png';
+
 // --- Filters ---
-$tenant_filter = $_GET['tenant'] ?? '';
-$from_date = $_GET['from_date'] ?? '';
-$to_date = $_GET['to_date'] ?? '';
+$tenant_filter = $_GET['tenant']    ?? '';
+$from_date     = $_GET['from_date'] ?? '';
+$to_date       = $_GET['to_date']   ?? '';
 
 // --- Base query --- only active tenants
 $query = "
@@ -62,8 +66,13 @@ $rows = [];
 while ($row = $result->fetch_assoc()) {
     $tenant_id = $row['tenant_id'];
 
-    // Get full billing details
-    $bill_stmt = $conn->prepare("SELECT * FROM billing WHERE tenant_id = ? AND bill_id = ?");
+    // Get full billing details including room number
+    $bill_stmt = $conn->prepare("
+        SELECT b.*, r.room_number 
+        FROM billing b 
+        JOIN rooms r ON b.room_id = r.room_id 
+        WHERE b.tenant_id = ? AND b.bill_id = ?
+    ");
     $bill_stmt->bind_param("ii", $tenant_id, $row['bill_id']);
     $bill_stmt->execute();
     $bill_details = $bill_stmt->get_result()->fetch_assoc();
@@ -78,74 +87,119 @@ while ($row = $result->fetch_assoc()) {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Collection Report</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <style>
-body { font-family: Arial,sans-serif; background:#f0f4f3; margin: 0; }
-.main-content { margin-left:225px; padding:30px; min-height:100vh; }
-.container { background:#fff; padding:20px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1); max-width:1200px; margin:auto; }
-h2 { text-align:center; margin-bottom:20px; }
-.table th, .table td { text-align:center; vertical-align:middle; }
-.total { font-weight:bold; text-align:right; margin-top:10px; font-size:16px; }
-.filter-form { margin-bottom:20px; display:flex; gap:10px; flex-wrap:wrap; }
-.filter-form input, .filter-form button { padding:5px; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f3; margin: 0; }
+.main-content { margin-left: 225px; padding: 30px; min-height: 100vh; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.page-header h2 { font-size: 1.6rem; font-weight: 700; color: #2c3e50; margin: 0; }
+.page-header h2 i { color: #5A7D7C; margin-right: 8px; }
+.card { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
+.card-body { padding: 20px 24px; }
+.btn-teal { background-color: #5A7D7C; color: #fff; border: none; border-radius: 8px; }
+.btn-teal:hover { background-color: #4a6c6b; color: #fff; }
+.report-table { width: 100%; border-collapse: collapse; min-width: 700px; }
+.report-table thead th { background: #5A7D7C; color: #fff; padding: 12px 14px; text-align: center; font-size: 0.87rem; font-weight: 600; position: sticky; top: 0; z-index: 2; white-space: nowrap; }
+.report-table tbody td { padding: 10px 14px; text-align: center; border-bottom: 1px solid #eee; font-size: 0.9rem; vertical-align: middle; }
+.report-table tbody tr:hover { background-color: #f1f8f7; }
+.table-wrapper { overflow-x: auto; overflow-y: auto; max-height: 520px; }
+.badge-settled { background: #d4edda; color: #155724; border-radius: 20px; padding: 4px 12px; font-size: 0.82rem; font-weight: 600; }
+.badge-partial  { background: #fff3cd; color: #856404; border-radius: 20px; padding: 4px 12px; font-size: 0.82rem; font-weight: 600; }
+.badge-pending  { background: #f8d7da; color: #721c24; border-radius: 20px; padding: 4px 12px; font-size: 0.82rem; font-weight: 600; }
+.summary-box { background: #fff; border: 1px solid #dee2e6; border-radius: 10px; padding: 14px 20px; font-weight: 700; font-size: 1rem; color: #2c3e50; }
+
 </style>
 </head>
 <body>
 <?php include '../../includes/sidebar.php'; ?>
 
+
+
 <div class="main-content">
-<div class="container">
-    <h2>📊 Collection Report</h2>
+    <!-- Page Header -->
+    <div class="page-header">
+        <h2><i class="fas fa-hand-holding-usd"></i> Collection Report</h2>
+    </div>
 
-    <!-- Filters -->
-    <form method="get" class="filter-form">
-        <input type="text" name="tenant" placeholder="Search Tenant" value="<?php echo htmlspecialchars($tenant_filter); ?>">
-        <label>From: <input type="date" name="from_date" value="<?php echo htmlspecialchars($from_date); ?>"></label>
-        <label>To: <input type="date" name="to_date" value="<?php echo htmlspecialchars($to_date); ?>"></label>
-        <button type="submit" class="btn btn-primary">Filter</button>
-    </form>
+    <!-- Filter Card -->
+    <div class="card">
+        <div class="card-body">
+            <form method="get" class="d-flex flex-wrap gap-3 align-items-end">
+                <div>
+                    <label class="form-label fw-semibold small mb-1">Tenant Name</label>
+                    <input type="text" name="tenant" class="form-control" placeholder="Search tenant..." value="<?php echo htmlspecialchars($tenant_filter); ?>" style="min-width:180px;">
+                </div>
+                <div>
+                    <label class="form-label fw-semibold small mb-1">From Date</label>
+                    <input type="date" name="from_date" class="form-control" value="<?php echo htmlspecialchars($from_date); ?>">
+                </div>
+                <div>
+                    <label class="form-label fw-semibold small mb-1">To Date</label>
+                    <input type="date" name="to_date" class="form-control" value="<?php echo htmlspecialchars($to_date); ?>">
+                </div>
+                <div>
+                    <label class="d-block mb-1">&nbsp;</label>
+                    <label class="d-block mb-1">&nbsp;</label>
+                    <button type="submit" class="btn btn-teal"><i class="fas fa-filter me-1"></i> Filter</button>
+                    <a href="print_collection.php?tenant=<?= urlencode($tenant_filter) ?>&from_date=<?= urlencode($from_date) ?>&to_date=<?= urlencode($to_date) ?>" target="_blank" class="btn btn-secondary ms-2" style="background:#2c3e50; border:none; padding:8px 18px; border-radius:8px;"><i class="fas fa-print me-1"></i> Print Report</a>
+                </div>
+            </form>
+        </div>
+    </div>
 
-    <!-- Table -->
-    <table class="table table-bordered">
-        <thead class="table-secondary">
-            <tr>
-                <th>Bill ID</th>
-                <th>Tenant Name</th>
-                <th>Room</th>
-                <th>Total Balance</th>
-                <th>Due Date</th>
-                <th>Status</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
+    <!-- Table Card -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-wrapper">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Tenant Name</th>
+                        <th>Room</th>
+                        <th>Total Balance</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
             <?php
             $total_collection = 0;
             if (!empty($rows)) {
                 foreach ($rows as $row) {
+                    $status = $row['status'] ?? '';
+                    $badgeClass = match(strtolower($status)) {
+                        'settled' => 'badge-settled',
+                        'partial' => 'badge-partial',
+                        default   => 'badge-pending',
+                    };
                     echo "<tr>
-                        <td>{$row['bill_id']}</td>
                         <td>{$row['tenant_name']}</td>
                         <td>{$row['room_number']}</td>
-                        <td>₱" . number_format($row['total_balance'],2) . "</td>
+                        <td>₱" . number_format((float)$row['total_balance'], 2) . "</td>
                         <td>{$row['due_date']}</td>
-                        <td>{$row['status']}</td>
+                        <td><span class='{$badgeClass}'>{$status}</span></td>
                         <td>
-                            <button class='btn btn-sm btn-info view-btn' data-bill='{$row['bill_id']}'>View</button>
+                            <button class='btn btn-sm view-btn' style='background:#5A7D7C;color:#fff;border-radius:6px;' data-bill='{$row['bill_id']}'>View</button>
                         </td>
                     </tr>";
-                    $total_collection += $row['total_balance'];
+                    $total_collection += (float)$row['total_balance'];
                 }
             } else {
-                echo "<tr><td colspan='7'>No records found.</td></tr>";
+                echo "<tr><td colspan='6' class='text-center text-muted py-4'>No records found.</td></tr>";
             }
             ?>
-        </tbody>
-    </table>
-
-    <div class="total">TOTAL COLLECTION: ₱<?php echo number_format($total_collection,2); ?></div>
-</div>
+                </tbody>
+            </table>
+            </div>
+            <div class="d-flex justify-content-end mt-3">
+                <div class="summary-box"><i class="fas fa-coins me-2 text-success"></i> Total Collection: ₱<?php echo number_format($total_collection,2); ?></div>
+            </div>
+        </div>
+    </div>
 
 <!-- View Modal -->
 <div class="modal fade" id="viewBillingModal" tabindex="-1" aria-hidden="true">
@@ -244,13 +298,13 @@ document.querySelectorAll('.view-btn').forEach(btn => {
             const content = `
             <table class="table table-bordered">
                 <tr>
-                    <td class="fw-bold">Room Number:</td><td>${bill.room_id}</td>
+                    <td class="fw-bold">Room Number:</td><td>${bill.room_number}</td>
                     <td class="fw-bold">Due Date:</td><td>${bill.due_date}</td>
                     <td class="fw-bold">Payment Date:</td><td>${bill.payment_date || '-'}</td>
                 </tr>
                 <tr>
                     <td class="fw-bold">Base Rent:</td><td>₱${parseFloat(bill.base_rent || 0).toFixed(2)}</td>
-                    <td class="fw-bold">Interest:</td><td>₱${parseFloat(bill.interest || 0).toFixed(2)}</td>
+                    <td class="fw-bold">Late Payment Charge:</td><td>₱${parseFloat(bill.interest || 0).toFixed(2)}</td>
                 </tr>
                 ${utilityRows}
                 ${addRows}

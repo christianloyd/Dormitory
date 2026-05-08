@@ -4,37 +4,15 @@
  * Path: /modules/rooms/occupied.php
  */
 require_once '../../includes/auth_check.php';
-require_once "../../includes/auth_check.php";
+require_once '../../helpers/TenantAssignments.php';
 
-// Fetch only Active rooms and Active tenants
-$roomQuery = "
-    SELECT r.*, 
-        COUNT(t.tenant_id) AS total_tenants
-    FROM rooms r
-    LEFT JOIN tenants t 
-        ON r.room_id = t.room_id 
-        AND t.status = 'Active'
-    WHERE r.record_status = 'Active'
-    GROUP BY r.room_id
-    ORDER BY r.room_number ASC
-";
-$roomResult = mysqli_query($conn, $roomQuery);
+$roomInventory = TenantAssignments::getRoomInventory($conn);
 
-// Count fully occupied rooms (only Active rooms and Active tenants)
-$result = $conn->query("
-    SELECT COUNT(*) AS totalOccupied
-    FROM (
-        SELECT r.room_id, r.capacity, COUNT(t.tenant_id) AS tenants_count
-        FROM rooms r
-        LEFT JOIN tenants t 
-            ON r.room_id = t.room_id 
-            AND t.status = 'Active'
-        WHERE r.record_status = 'Active'
-        GROUP BY r.room_id
-        HAVING tenants_count >= r.capacity
-    ) AS occupied_rooms
-");
-$totalOccupied = $result->fetch_assoc()['totalOccupied'];
+$occupiedRooms = array_values(array_filter($roomInventory, function (array $room): bool {
+    return ($room['available_slots'] ?? 0) <= 0;
+}));
+
+$totalOccupied = count($occupiedRooms);
 ?>
 
 <!DOCTYPE html>
@@ -134,30 +112,47 @@ $totalOccupied = $result->fetch_assoc()['totalOccupied'];
                     </tr>
                 </thead>
                 <tbody>
-                <?php
-                $hasOccupied = false;
-                while ($row = mysqli_fetch_assoc($roomResult)) {
-                    $available = $row['capacity'] - $row['total_tenants'];
-                    if ($available <= 0) {
-                        $hasOccupied = true;
-                        ?>
+                <?php if (!empty($occupiedRooms)): ?>
+                    <?php foreach ($occupiedRooms as $room):
+                        $roomNumber = htmlspecialchars($room['room_number'], ENT_QUOTES, 'UTF-8');
+                        $roomType = htmlspecialchars($room['room_type'], ENT_QUOTES, 'UTF-8');
+
+                        $capacity = (int)$room['capacity'];
+                        $upperDecks = (int)$room['upper_deck_count'];
+                        $lowerDecks = (int)$room['lower_deck_count'];
+
+                        $availableSlots = (int)$room['available_slots'];
+                        $upperAvailable = (int)$room['upper_available'];
+                        $lowerAvailable = (int)$room['lower_available'];
+
+                        if ($room['room_type'] === 'Whole Room') {
+                            $capacity = max(1, $capacity);
+                        }
+
+                        $upperCapacity = $upperDecks;
+                        $lowerCapacity = $lowerDecks;
+
+                        $upperSummary = $upperDecks > 0
+                            ? sprintf('%d occupied / %d', $upperCapacity - $upperAvailable, $upperCapacity)
+                            : '—';
+                        $lowerSummary = $lowerDecks > 0
+                            ? sprintf('%d occupied / %d', $lowerCapacity - $lowerAvailable, $lowerCapacity)
+                            : '—';
+                    ?>
                         <tr>
-                            <td><?= htmlspecialchars($row['room_number']) ?></td>
-                            <td><?= htmlspecialchars($row['room_type']) ?></td>
-                            <td><?= $row['capacity'] ?></td>
-                            <td><?= $available ?></td>
-                            <td><?= $row['upper_deck_count'] ?></td>
-                            <td><?= $row['lower_deck_count'] ?></td>
-                            <td><?= number_format($row['price'],2) ?></td>
+                            <td><?= $roomNumber ?></td>
+                            <td><?= $roomType ?></td>
+                            <td><?= $capacity ?></td>
+                            <td><?= $availableSlots ?></td>
+                            <td><?= $upperSummary ?></td>
+                            <td><?= $lowerSummary ?></td>
+                            <td><?= number_format((float)$room['price'], 2) ?></td>
                             <td>Occupied</td>
                         </tr>
-                        <?php
-                    }
-                }
-                if (!$hasOccupied) {
-                    echo '<tr><td colspan="8">No occupied rooms found.</td></tr>';
-                }
-                ?>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr><td colspan="8">No occupied rooms found.</td></tr>
+                <?php endif; ?>
                 </tbody>
             </table>
         </div>

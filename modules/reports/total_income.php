@@ -44,7 +44,7 @@ $query = "
     SELECT b.*, t.tenant_name, t.profile_pic, r.room_number, t.status AS tenant_status
     FROM billing b
     INNER JOIN tenants t ON b.tenant_id = t.tenant_id
-    INNER JOIN rooms r ON t.room_id = r.room_id
+    INNER JOIN rooms r ON r.room_id = b.room_id
     WHERE 
         (b.payment_amount > 0)
         AND t.status = 'Active'
@@ -109,6 +109,7 @@ foreach ($paidTenants as $p) {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Total Income Report</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -147,7 +148,7 @@ $header_pic = $header ? BASE_PATH . '/' . $header['setting_value'] : BASE_PATH .
 <hr style="width:100%; margin:10px auto; border:1px solid #140d0dff;">
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <a href="dashboard.php" class="btn btn-secondary">← Back to Dashboard</a>
+    <a href="<?= BASE_PATH ?>/modules/dashboard/" class="btn btn-secondary">← Back to Dashboard</a>
     <form class="d-flex" onsubmit="return false;">
         <button type="submit" class="btn-login">Search</button>
         <input type="text" id="searchInput" class="form-control me-2" placeholder="Search tenant by full name...">

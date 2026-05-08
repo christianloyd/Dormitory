@@ -11,7 +11,7 @@ class FileUpload {
     private $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
     private $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif'];
     private $max_size = 5242880; // 5MB in bytes
-    private $upload_dir = 'uploads/';
+    private $upload_dir = 'uploads/'; // The logical path saved to the database
 
     /**
      * Upload a file securely
@@ -65,24 +65,30 @@ class FileUpload {
         // Generate secure random filename
         $ext = $this->getExtensionFromMime($mime);
         $filename = $type . '_' . bin2hex(random_bytes(16)) . '.' . $ext;
-        $target = $this->upload_dir . $filename;
+        
+        // Relative path to save to database
+        $db_target = rtrim($this->upload_dir, '/') . '/' . $filename;
+        
+        // Absolute path to save physical file
+        $physical_dir = __DIR__ . '/../' . rtrim($this->upload_dir, '/');
+        $physical_target = $physical_dir . '/' . $filename;
 
         // Ensure upload directory exists
-        if (!is_dir($this->upload_dir)) {
-            if (!mkdir($this->upload_dir, 0755, true)) {
+        if (!is_dir($physical_dir)) {
+            if (!mkdir($physical_dir, 0755, true)) {
                 throw new Exception("Failed to create upload directory.");
             }
         }
 
         // Move file to target location
-        if (!move_uploaded_file($file['tmp_name'], $target)) {
+        if (!move_uploaded_file($file['tmp_name'], $physical_target)) {
             throw new Exception("Failed to move uploaded file.");
         }
 
         // Set appropriate permissions
-        chmod($target, 0644);
+        chmod($physical_target, 0644);
 
-        return $target;
+        return $db_target;
     }
 
     /**
@@ -92,17 +98,19 @@ class FileUpload {
      * @return bool True on success, false on failure
      */
     public function delete($filepath) {
+        $absolute_filepath = __DIR__ . '/../' . ltrim($filepath, '/');
+        
         // Security check: only allow deletion of files in upload directory
-        $realpath = realpath($filepath);
-        $upload_realpath = realpath($this->upload_dir);
+        $realpath = realpath($absolute_filepath);
+        $upload_realpath = realpath(__DIR__ . '/../' . rtrim($this->upload_dir, '/'));
 
         if ($realpath === false || strpos($realpath, $upload_realpath) !== 0) {
-            error_log("Attempted to delete file outside upload directory: $filepath");
+            error_log("Attempted to delete file outside upload directory: $absolute_filepath");
             return false;
         }
 
-        if (file_exists($filepath) && is_file($filepath)) {
-            return unlink($filepath);
+        if (file_exists($absolute_filepath) && is_file($absolute_filepath)) {
+            return unlink($absolute_filepath);
         }
 
         return false;
@@ -149,8 +157,9 @@ class FileUpload {
      * @return bool True if safe, false otherwise
      */
     public function isValidPath($filepath) {
-        $realpath = realpath($filepath);
-        $upload_realpath = realpath($this->upload_dir);
+        $absolute_filepath = __DIR__ . '/../' . ltrim($filepath, '/');
+        $realpath = realpath($absolute_filepath);
+        $upload_realpath = realpath(__DIR__ . '/../' . rtrim($this->upload_dir, '/'));
 
         if ($realpath === false || $upload_realpath === false) {
             return false;

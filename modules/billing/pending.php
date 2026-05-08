@@ -1,7 +1,15 @@
 <?php
 session_start();
-}
 
+// Enable error reporting
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+// Define BASE_PATH
+if(!defined('BASE_PATH')) define('BASE_PATH', '/dorm_system');
+
+// Database connection
 $host = 'localhost';
 $user = 'root';
 $pass = '';
@@ -43,7 +51,7 @@ function computeBalances($total, $payment, $prev_credit) {
     ];
 }
 
-// --- Fetch billing data ---
+// --- Fetch pending tenants (Active only) ---
 $prev_credit = 0;
 $pendingTenants = [];
 
@@ -55,15 +63,13 @@ $query = "
     WHERE 
         MONTH(b.due_date) = $currentMonth 
         AND YEAR(b.due_date) = $currentYear
-        AND t.status = 'Active'
+        AND t.status = 'active'
     ORDER BY b.due_date ASC
 ";
-
 
 $res = $conn->query($query);
 
 while ($row = $res->fetch_assoc()) {
-    // Decode JSON safely
     $utility_amounts = json_decode($row['utility_amount'], true);
     if (!is_array($utility_amounts)) $utility_amounts = [$utility_amounts ?? 0];
 
@@ -80,17 +86,16 @@ while ($row = $res->fetch_assoc()) {
     $total = $base_rent + $utility_total + $add_total + $interest + $previous_balance + $other_amount;
     $payment = floatval($row['payment_amount'] ?? 0);
 
-    // Compute status & balances
     $status = getBillingStatus($total, $payment, $prev_credit);
     $balances = computeBalances($total, $payment, $prev_credit);
 
-   if ($status === "Pending") {
-    $row['status'] = $status;
-    $row['total'] = $total;
-    $row['credit_balance'] = $balances['credit'];
-    $row['balance'] = $balances['balance'];
-    $pendingTenants[] = $row;
-}
+    if ($status === "Pending") {
+        $row['status'] = $status;
+        $row['total'] = $total;
+        $row['credit_balance'] = $balances['credit'];
+        $row['balance'] = $balances['balance'];
+        $pendingTenants[] = $row;
+    }
 
     // Update previous credit
     if ($payment > $total) {
@@ -102,20 +107,20 @@ while ($row = $res->fetch_assoc()) {
     }
 }
 
-// --- Compute total pending tenants ---
 $totalPending = count($pendingTenants);
-
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pending Payment Tenants</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
 body { margin:0; font-family: Arial,sans-serif; display:flex; background-color:#f6f7f6; }
-.main-content { margin-left:225px; padding:30px; background-color:#f6f7f6; min-height:100vh; width:calc(100% - 225px); }
+.main-content { margin-left:225px; padding:30px; background-color:#f6f7f6; min-height:100vh; width:calc(100% - 225px); overflow-y:auto; }
 .pending-table-container { overflow-x:auto; max-height:70vh; }
 .profile-pic { width:40px; height:40px; object-fit:cover; border-radius:50%; border:1.5px solid #5A7D7C; }
 table th, table td { vertical-align: middle; text-align:center; font-size:14px; white-space:nowrap; }
@@ -128,24 +133,15 @@ body, html { width:100%; height:100%; overflow:hidden; }
 </head>
 <body>
 <?php include '../../includes/sidebar.php'; ?>
+
 <div class="main-content">
-
-<?php
-$header = $conn->query("SELECT setting_value FROM settings WHERE setting_name='header_image'")->fetch_assoc();
-$header_pic = $header ? BASE_PATH . '/' . $header['setting_value'] : BASE_PATH . "/uploads/default_header.png";
-?>
-
 <div class="d-flex justify-content-between align-items-center mt-0">
     <h2>Pending Payment Tenants (<?php echo date("F Y"); ?>)</h2>
-    <div class="profile-box d-flex align-items-center">
-        <img src="<?php echo $header_pic; ?>" alt="Header Picture" class="rounded-circle" width="50" height="50">
-        <span class="ms-2">Admin</span>
-    </div>
 </div>
 <hr style="width:100%; margin:10px auto; border:1px solid #140d0dff;">
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <a href="dashboard.php" class="btn btn-secondary">← Back to Dashboard</a>
+    <a href="<?= BASE_PATH ?>/modules/dashboard/" class="btn btn-secondary">← Back to Dashboard</a>
     <form class="d-flex" onsubmit="return false;">
         <button type="submit" class="btn-login">Search</button>
         <input type="text" id="searchInput" class="form-control me-2" placeholder="Search tenant by full name...">
@@ -175,20 +171,18 @@ $header_pic = $header ? BASE_PATH . '/' . $header['setting_value'] : BASE_PATH .
                 <tr>
                     <td>
                         <?php if (!empty($row['profile_pic'])): ?>
-                            <img src="<?php echo BASE_PATH . '/' . htmlspecialchars($row['profile_pic']); ?>" class="profile-pic" alt="Profile">
+                            <img src="<?= BASE_PATH . '/' . htmlspecialchars($row['profile_pic']); ?>" class="profile-pic" alt="Profile">
                         <?php else: ?>
                             <i class="fa-solid fa-circle-user fa-2x"></i>
                         <?php endif; ?>
                     </td>
-                    <td><?php echo htmlspecialchars($row['tenant_name']); ?></td>
-                    <td><?php echo htmlspecialchars($row['room_number']); ?></td>
-                    <td><?php echo date("M d, Y", strtotime($row['due_date'])); ?></td>
-                    <td><?php echo !empty($row['payment_date']) ? date("M d, Y", strtotime($row['payment_date'])) : "-"; ?></td>
-                    <td>₱<?php echo number_format($row['total'], 2); ?></td>
-                    <td>₱<?php echo number_format(floatval($row['payment_amount']), 2); ?></td>
-                    <td>
-                        <span class="badge bg-warning"><?php echo $row['status']; ?></span>
-                    </td>
+                    <td><?= htmlspecialchars($row['tenant_name']); ?></td>
+                    <td><?= htmlspecialchars($row['room_number']); ?></td>
+                    <td><?= date("M d, Y", strtotime($row['due_date'])); ?></td>
+                    <td><?= !empty($row['payment_date']) ? date("M d, Y", strtotime($row['payment_date'])) : "-"; ?></td>
+                    <td>₱<?= number_format($row['total'], 2); ?></td>
+                    <td>₱<?= number_format(floatval($row['payment_amount']), 2); ?></td>
+                    <td><span class="badge bg-warning"><?= $row['status']; ?></span></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>

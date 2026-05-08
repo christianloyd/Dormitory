@@ -1,0 +1,57 @@
+/* --- Global Responsive Overrides for Sidebar Collapse --- */
+
+/* Fix Hamburger Button Stacking Over Bootstrap/Tables */
+.sidebar-toggle {
+    z-index: 9999 !important;
+    /* Ensure hamburger is always clickable */
+}
+
+.sidebar-overlay.show {
+    z-index: 9998 !important;
+    /* Ensure overlay dims the whole page */
+}
+
+.sidebar.show {
+    z-index: 9999 !important;
+    /* Ensure sliding menu sweeps over everything */
+}
+
+@media (max-width: 768px) {
+
+    /* 
+     * Override `.main-content` globally. 
+     * Many modules hardcode `margin-left: 225px;` and explicit widths.
+     * We reset them here so the content stretches edge-to-edge when the sidebar is hidden.
+     */
+    .main-content,
+    div[style*="margin-left:"],
+    div[style*="margin-left: 225px"],
+    div[style*="margin-left:225px"] {
+        margin-left: 0 !important;
+        width: 100% !important;
+        padding: 15px !important;
+    }
+
+    /* Adjust page headers to accommodate the fixed hamburger button top-left */
+    .page-header,
+    .d-flex.justify-content-between.align-items-center {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 15px;
+        padding-top: 40px;
+        /* Push down to avoid hamburger icon */
+    }
+
+    /* Adjust specific tables to be responsive and not overlap the sidebar */
+    .table-wrapper,
+    .table-container {
+        overflow-x: auto;
+        z-index: 1 !important;
+    }
+
+    /* Release sticky table headers that might overlap the overlay */
+    thead {
+        position: static !important;
+        z-index: auto !important;
+    }
+}

@@ -116,7 +116,7 @@ body { font-family: Arial, sans-serif; background:#f6f7f6; padding:20px; }
                 </tr>
             <?php endforeach; ?>
 
-            <tr><td>Interest</td><td align="right">₱<?= number_format($interest,2); ?></td></tr>
+            <tr><td>Late Payment Charge</td><td align="right">₱<?= number_format($interest,2); ?></td></tr>
             <tr><td>Previous Balance</td><td align="right">₱<?= number_format($previous_balance,2); ?></td></tr>
             <tr><td>Previous Credit</td><td align="right">₱<?= number_format($previous_credit,2); ?></td></tr>
             <tr><td>Other Amount</td><td align="right">₱<?= number_format($other_amount,2); ?></td></tr>

@@ -5,46 +5,19 @@
  */
 require_once '../../includes/auth_check.php';
 
+require_once __DIR__ . '/../../helpers/TenantAssignments.php';
+
+$roomInventory = TenantAssignments::getRoomInventory($conn);
+
 // --- Handle Edit Tenant Form Submission ---
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['edit_tenant_id'])) {
-    $tenant_id = intval($_POST['edit_tenant_id']);
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['edit_tenant_id'])) {
+    $tenantId = intval($_POST['edit_tenant_id']);
 
-    // Fetch existing tenant info
-    $sql = "SELECT * FROM tenants WHERE tenant_id = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("i", $tenant_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $tenant = $result->fetch_assoc();
-
-    // Use POST if available, else use existing value
-    $tenant_name     = !empty($_POST['tenant_name']) ? trim($_POST['tenant_name']) : $tenant['tenant_name'];
-    $room_id         = !empty($_POST['room_id']) ? intval($_POST['room_id']) : $tenant['room_id'];
-    $deck_type       = !empty($_POST['deck_type']) ? trim($_POST['deck_type']) : $tenant['deck_type'];
-    $address         = !empty($_POST['address']) ? trim($_POST['address']) : $tenant['address'];
-    $contact_number  = !empty($_POST['contact_number']) ? trim($_POST['contact_number']) : $tenant['contact_number'];
-    $guardian_contact= !empty($_POST['guardian_contact']) ? trim($_POST['guardian_contact']) : $tenant['guardian_contact'];
-    $status          = !empty($_POST['status']) ? $_POST['status'] : $tenant['status'];
-    $date_started    = !empty($_POST['date_started']) ? $_POST['date_started'] : $tenant['date_started'];
-
-    // validate contact numbers
-    if (!preg_match('/^09[0-9]{9}$/', $contact_number) ||
-        !preg_match('/^09[0-9]{9}$/', $guardian_contact)) {
-        $_SESSION['swal_error'] = "Invalid Contact Number! Must start with 09 and be 11 digits.";
-        header("Location: index.php");
-        exit;
-    }
-
-    // update tenant
-    $stmt = $conn->prepare("UPDATE tenants 
-        SET tenant_name=?, room_id=?, deck_type=?, address=?, contact_number=?, guardian_contact=?, status=?, date_started=? 
-        WHERE tenant_id=?");
-    $stmt->bind_param("sissssssi", $tenant_name, $room_id, $deck_type, $address, $contact_number, $guardian_contact, $status, $date_started, $tenant_id);
-
-    if ($stmt->execute()) {
-        $_SESSION['swal_success'] = "Tenant '{$tenant_name}' has been updated successfully!";
-    } else {
-        $_SESSION['swal_error'] = "Error updating tenant: " . $stmt->error;
+    try {
+        TenantAssignments::updateTenant($conn, $tenantId, $_POST, $_FILES);
+        $_SESSION['swal_success'] = "Tenant updated successfully!";
+    } catch (Exception $e) {
+        $_SESSION['swal_error'] = $e->getMessage();
     }
 
     header("Location: index.php");
@@ -52,80 +25,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['edit_tenant_id'])) {
 }
 
 // --- Handle Add Tenant Form Submission ---
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tenant_name'])) {
-    $tenant_name = trim($_POST['tenant_name']);
-    $room_id = intval($_POST['room_id']);
-    $deck_type = trim($_POST['deck_type']);
-    $address = trim($_POST['address']);
-    $contact_number = trim($_POST['contact_number']);
-    $guardian_contact = trim($_POST['guardian_contact']);
-    $status = 'Active'; // default every newly added tenant to Active
-    $date_started = $_POST['date_started'];
-
-    // Validate contact numbers
-    if (!preg_match('/^09[0-9]{9}$/', $contact_number)) {
-        $_SESSION['swal_error'] = "Invalid Contact Number! It must start with 09 and be 11 digits.";
-        header("Location: index.php");
-        exit;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tenant_name'])) {
+    try {
+        TenantAssignments::createTenant($conn, $_POST, $_FILES);
+        $_SESSION['swal_success'] = "Tenant added successfully!";
+    } catch (Exception $e) {
+        $_SESSION['swal_error'] = $e->getMessage();
     }
 
-    if (!preg_match('/^09[0-9]{9}$/', $guardian_contact)) {
-        $_SESSION['swal_error'] = "Invalid Guardian Contact! It must start with 09 and be 11 digits.";
-        header("Location: index.php");
-        exit;
-    }
-
-    $profile_pic = "";
-    if (!empty($_FILES['profile_pic']['name'])) {
-        $profile_pic = "uploads/" . basename($_FILES['profile_pic']['name']);
-        move_uploaded_file($_FILES['profile_pic']['tmp_name'], $profile_pic);
-    }
-
-    $proof_pic = "";
-    if (!empty($_FILES['proof_pic']['name'])) {
-        $proof_pic = "uploads/" . basename($_FILES['proof_pic']['name']);
-        move_uploaded_file($_FILES['proof_pic']['tmp_name'], $proof_pic);
-    }
-
-    // Check room type
-    $roomQuery = $conn->prepare("SELECT room_type FROM rooms WHERE room_id=?");
-    $roomQuery->bind_param("i", $room_id);
-    $roomQuery->execute();
-    $roomType = $roomQuery->get_result()->fetch_assoc()['room_type'];
-    if ($roomType == "Whole Room") $deck_type = NULL;
-
-    // Insert tenant
-    $stmt = $conn->prepare("INSERT INTO tenants (tenant_name, profile_pic, proof_pic, room_id, deck_type, address, contact_number, guardian_contact, status, date_started) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("sssissssss", $tenant_name, $profile_pic, $proof_pic, $room_id, $deck_type, $address, $contact_number, $guardian_contact, $status, $date_started);
-
-    if ($stmt->execute()) {
-        // Update room availability
-        $roomQuery = $conn->prepare("SELECT capacity FROM rooms WHERE room_id=?");
-        $roomQuery->bind_param("i", $room_id);
-        $roomQuery->execute();
-        $capacity = $roomQuery->get_result()->fetch_assoc()['capacity'];
-
-        $countQuery = $conn->prepare("SELECT COUNT(*) as tenant_count FROM tenants WHERE room_id=?");
-        $countQuery->bind_param("i", $room_id);
-        $countQuery->execute();
-        $tenantCount = $countQuery->get_result()->fetch_assoc()['tenant_count'];
-
-        $status_room = ($tenantCount >= $capacity) ? 'Full' : 'Available';
-        $updateRoom = $conn->prepare("UPDATE rooms SET available=?, status=? WHERE room_id=?");
-        $updateRoom->bind_param("isi", $tenantCount, $status_room, $room_id);
-        $updateRoom->execute();
-
-        $_SESSION['swal_success'] = "Tenant '{$tenant_name}' has been added successfully!";
-        header("Location: index.php");
-        exit;
-    } else {
-        $_SESSION['swal_error'] = "Error: " . $stmt->error;
-        header("Location: index.php");
-        exit;
-    }
+    header("Location: index.php");
+    exit;
 }
-?>
 
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -179,6 +91,29 @@ $inactiveQuery = $conn->query("SELECT COUNT(*) as inactive_count FROM tenants WH
 
 $activeCount = $activeQuery->fetch_assoc()['active_count'];
 $inactiveCount = $inactiveQuery->fetch_assoc()['inactive_count'];
+
+$activeTenantsResult = $conn->query("SELECT * FROM tenants WHERE status='Active' ORDER BY tenant_name, date_started ASC");
+$activeTenants = [];
+$activeTenantIds = [];
+if ($activeTenantsResult) {
+    while ($row = $activeTenantsResult->fetch_assoc()) {
+        $activeTenants[] = $row;
+        $activeTenantIds[] = (int)$row['tenant_id'];
+    }
+}
+
+$inactiveTenantsResult = $conn->query("SELECT * FROM tenants WHERE status='Inactive' ORDER BY tenant_name, date_started DESC");
+$inactiveTenants = [];
+$inactiveTenantIds = [];
+if ($inactiveTenantsResult) {
+    while ($row = $inactiveTenantsResult->fetch_assoc()) {
+        $inactiveTenants[] = $row;
+        $inactiveTenantIds[] = (int)$row['tenant_id'];
+    }
+}
+
+$activeAssignments = TenantAssignments::getAssignmentsForTenants($conn, $activeTenantIds);
+$inactiveAssignments = TenantAssignments::getAssignmentsForTenants($conn, $inactiveTenantIds);
 ?>
 
 <div style="margin-top:10px; font-weight:bold;">
@@ -219,45 +154,67 @@ $inactiveCount = $inactiveQuery->fetch_assoc()['inactive_count'];
           </tr>
         </thead>
         <tbody>
-          <?php
-          $sql = "SELECT t.*, r.room_number, r.room_type
-                  FROM tenants t
-                  LEFT JOIN rooms r ON t.room_id = r.room_id
-                  WHERE t.status='Active'
-                  ORDER BY t.created_at DESC";
-          $result = $conn->query($sql);
-          if ($result->num_rows > 0) {
-              while ($row = $result->fetch_assoc()) {
-                  echo '<tr>
-                          <td><img src="'.BASE_PATH.'/'.htmlspecialchars($row['profile_pic']).'" class="profile-pic"></td>
-                          <td><img src="'.BASE_PATH.'/'.htmlspecialchars($row['proof_pic']).'" class="proof-pic"></td>
-                          <td>'.htmlspecialchars($row['tenant_name']).'</td>
-                          <td>'.htmlspecialchars($row['room_number']).'</td>
-                          <td>'.htmlspecialchars($row['room_type']).'</td>
-                          <td>'.htmlspecialchars($row['deck_type']).'</td>
-                          <td>'.htmlspecialchars($row['address']).'</td>
-                          <td>'.htmlspecialchars($row['contact_number']).'</td>
-                          <td>'.htmlspecialchars($row['guardian_contact']).'</td>
-                          <td>'.htmlspecialchars($row['date_started']).'</td>
-                          <td><span style="color:green;">Active</span></td>
-                          <td>
-                            <a href="javascript:void(0);" class="btn btn-edit" onclick="openEditModal(
-                              '.$row['tenant_id'].', 
-                              \''.addslashes($row['tenant_name']).'\',
-                              \''.addslashes($row['address']).'\',
-                              \''.$row['contact_number'].'\',
-                              \''.$row['guardian_contact'].'\',
-                              \''.$row['room_id'].'\',
-                              \''.$row['deck_type'].'\')">Edit</a>
-                           <a href="delete.php?id='.$row['tenant_id'].'" class="btn btn-delete" data-id="'.$row['tenant_id'].'" data-name="'.htmlspecialchars($row['tenant_name'], ENT_QUOTES).'"> Inactive
-                           </a>
-                          </td>
-                        </tr>';
-              }
-          } else {
-              echo "<tr><td colspan='12' style='text-align:center;'>No active tenants</td></tr>";
-          }
-          ?>
+        <?php
+        if (!empty($activeTenants)) {
+            foreach ($activeTenants as $tenant) {
+                $tenantId = (int)$tenant['tenant_id'];
+                $assignments = $activeAssignments[$tenantId] ?? [];
+
+                $roomNumbers = [];
+                $roomTypes = [];
+                $deckLabels = [];
+
+                foreach ($assignments as $assignment) {
+                    $roomNumbers[] = htmlspecialchars($assignment['room_number'], ENT_QUOTES, 'UTF-8');
+                    $roomTypes[] = htmlspecialchars($assignment['room_type'], ENT_QUOTES, 'UTF-8');
+                    $deckLabels[] = htmlspecialchars($assignment['deck_type'] ?: 'Whole Room', ENT_QUOTES, 'UTF-8');
+                }
+
+                if (empty($roomNumbers)) {
+                    $roomNumbers[] = '<span class="text-muted">Unassigned</span>';
+                    $roomTypes[] = '<span class="text-muted">N/A</span>';
+                    $deckLabels[] = '<span class="text-muted">N/A</span>';
+                }
+
+                $editPayload = [
+                    'id' => $tenantId,
+                    'name' => $tenant['tenant_name'] ?? '',
+                    'address' => $tenant['address'] ?? '',
+                    'contact' => $tenant['contact_number'] ?? '',
+                    'guardian' => $tenant['guardian_contact'] ?? '',
+                    'assignments' => $assignments,
+                    'date_started' => $tenant['date_started'] ?? '',
+                ];
+                $editDataAttr = htmlspecialchars(json_encode($editPayload, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP), ENT_QUOTES, 'UTF-8');
+
+                echo '<tr>';
+                echo '<td>'.(!empty($tenant['profile_pic'])
+                    ? '<img src="'.BASE_PATH.'/'.htmlspecialchars($tenant['profile_pic']).'" class="profile-pic">'
+                    : '<i class="fa-solid fa-circle-user fa-2x"></i>').'</td>';
+                echo '<td>'.(!empty($tenant['proof_pic'])
+                    ? '<img src="'.BASE_PATH.'/'.htmlspecialchars($tenant['proof_pic']).'" class="proof-pic">'
+                    : '<i class="fa-solid fa-circle-user fa-2x"></i>').'</td>';
+                echo '<td>'.htmlspecialchars($tenant['tenant_name']).'</td>';
+                echo '<td>'.implode('<br>', $roomNumbers).'</td>';
+                echo '<td>'.implode('<br>', $roomTypes).'</td>';
+                echo '<td>'.implode('<br>', $deckLabels).'</td>';
+                echo '<td>'.htmlspecialchars($tenant['address']).'</td>';
+                echo '<td>'.htmlspecialchars($tenant['contact_number']).'</td>';
+                echo '<td>'.htmlspecialchars($tenant['guardian_contact']).'</td>';
+                echo '<td>'.htmlspecialchars($tenant['date_started']).'</td>';
+                echo '<td><span style="color:green;">Active</span></td>';
+                echo '<td>
+                        <a href="#" class="btn btn-edit" data-edit="'.$editDataAttr.'">Edit</a>
+                        <a href="delete.php?id='.$tenantId.'" class="btn btn-delete" data-id="'.$tenantId.'" data-name="'.htmlspecialchars($tenant['tenant_name'], ENT_QUOTES).'">Inactive</a>
+                      </td>';
+                echo '</tr>';
+            }
+        } else {
+            echo '<tr><td colspan="12" style="text-align:center;">No active tenants</td></tr>';
+        }
+        ?>
+
+
         </tbody>
       </table>
     </div>
@@ -282,25 +239,34 @@ $inactiveCount = $inactiveQuery->fetch_assoc()['inactive_count'];
       </thead>
       <tbody>
         <?php
-        $inactive_sql = "SELECT t.*, r.room_number 
-                         FROM tenants t 
-                         LEFT JOIN rooms r ON t.room_id = r.room_id 
-                         WHERE t.status='Inactive' 
-                         ORDER BY t.created_at DESC";
-        $inactive_result = $conn->query($inactive_sql);
-        if ($inactive_result->num_rows > 0) {
-            while ($row = $inactive_result->fetch_assoc()) {
-                echo '<tr>
-                        <td><img src="'.BASE_PATH.'/'.htmlspecialchars($row['profile_pic']).'" class="profile-pic"></td>
-                        <td><img src="'.BASE_PATH.'/'.htmlspecialchars($row['proof_pic']).'" class="proof-pic"></td>
-                        <td>'.htmlspecialchars($row['tenant_name']).'</td>
-                        <td>'.htmlspecialchars($row['room_number']).'</td>
-                        <td>'.htmlspecialchars($row['address']).'</td>
-                        <td>'.htmlspecialchars($row['contact_number']).'</td>
-                        <td>'.htmlspecialchars($row['guardian_contact']).'</td>
-                        <td>'.htmlspecialchars($row['date_started']).'</td>
-                        <td><span style="color:red;">Inactive</span></td>
-                      </tr>';
+        if (!empty($inactiveTenants)) {
+            foreach ($inactiveTenants as $tenant) {
+                $tenantId = (int)$tenant['tenant_id'];
+                $assignments = $inactiveAssignments[$tenantId] ?? [];
+
+                $roomSummary = [];
+                foreach ($assignments as $assignment) {
+                    $roomSummary[] = htmlspecialchars($assignment['room_number'].' — '.($assignment['deck_type'] ?: 'Whole Room'), ENT_QUOTES, 'UTF-8');
+                }
+                if (empty($roomSummary)) {
+                    $roomSummary[] = '<span class="text-muted">Unassigned</span>';
+                }
+
+                echo '<tr>';
+                echo '<td>'.(!empty($tenant['profile_pic'])
+                    ? '<img src="'.BASE_PATH.'/'.htmlspecialchars($tenant['profile_pic']).'" class="profile-pic">'
+                    : '<i class="fa-solid fa-circle-user fa-2x"></i>').'</td>';
+                echo '<td>'.(!empty($tenant['proof_pic'])
+                    ? '<img src="'.BASE_PATH.'/'.htmlspecialchars($tenant['proof_pic']).'" class="proof-pic">'
+                    : '<i class="fa-solid fa-circle-user fa-2x"></i>').'</td>';
+                echo '<td>'.htmlspecialchars($tenant['tenant_name']).'</td>';
+                echo '<td>'.implode('<br>', $roomSummary).'</td>';
+                echo '<td>'.htmlspecialchars($tenant['address']).'</td>';
+                echo '<td>'.htmlspecialchars($tenant['contact_number']).'</td>';
+                echo '<td>'.htmlspecialchars($tenant['guardian_contact']).'</td>';
+                echo '<td>'.htmlspecialchars($tenant['date_started']).'</td>';
+                echo '<td><span style="color:red;">Inactive</span></td>';
+                echo '</tr>';
             }
         } else {
             echo "<tr><td colspan='9' style='text-align:center;'>No inactive tenants</td></tr>";
@@ -321,8 +287,8 @@ $inactiveCount = $inactiveQuery->fetch_assoc()['inactive_count'];
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="<?= BASE_PATH ?>/js/sweetalert-helpers.js"></script>
 <script>
-
-// Display SweetAlert messages from PHP session
+(function () {
+    // Display SweetAlert messages from PHP session
 <?php if (isset($_SESSION['swal_success'])): ?>
     AlertHelper.success('Success', '<?= addslashes($_SESSION['swal_success']) ?>');
     <?php unset($_SESSION['swal_success']); ?>
@@ -333,251 +299,409 @@ $inactiveCount = $inactiveQuery->fetch_assoc()['inactive_count'];
     <?php unset($_SESSION['swal_error']); ?>
 <?php endif; ?>
 
+    const inventoryElement = document.getElementById('roomInventoryJson');
+    const roomInventory = inventoryElement ? JSON.parse(inventoryElement.textContent || '[]') : [];
+    const roomInventoryMap = new Map(roomInventory.map(item => [String(item.room_id), item]));
 
+    let addAssignmentManager = null;
+    let editAssignmentManager = null;
 
-function openModal() { document.getElementById('tenantModal').style.display = 'flex'; }
-function closeModal() { document.getElementById('tenantModal').style.display = 'none'; }
-
-function checkDeck() {
-    const roomSelect = document.getElementById("roomSelect");
-    const deckSelect = document.getElementById("deckSelect");
-
-    const selectedOption = roomSelect.options[roomSelect.selectedIndex];
-    if (!selectedOption) return;
-
-    const roomType = selectedOption.dataset.roomType;
-
-    if (roomType === "Whole Room") {
-        deckSelect.value = "";
-        deckSelect.disabled = true;
-        deckSelect.querySelectorAll('option').forEach(opt => {
-            if(opt.value !== "") opt.text = opt.value;
-        });
-        return;
-    }
-
-    deckSelect.disabled = false;
-
-    const upperCount = parseInt(selectedOption.dataset.upper);
-    const lowerCount = parseInt(selectedOption.dataset.lower);
-    const upperOccupied = parseInt(selectedOption.dataset.upperOccupied);
-    const lowerOccupied = parseInt(selectedOption.dataset.lowerOccupied);
-
-    const upperAvailable = upperCount - upperOccupied;
-    const lowerAvailable = lowerCount - lowerOccupied;
-
-    const upperOption = deckSelect.querySelector('option[value="Upper Deck"]');
-    const lowerOption = deckSelect.querySelector('option[value="Lower Deck"]');
-
-    upperOption.disabled = (upperAvailable <= 0);
-    lowerOption.disabled = (lowerAvailable <= 0);
-
-    upperOption.style.color = (upperAvailable <= 0) ? "gray" : "black";
-    lowerOption.style.color = (lowerAvailable <= 0) ? "gray" : "black";
-
-    upperOption.text = upperAvailable > 0 ? `Upper Deck (${upperAvailable} Available)` : "Upper Deck (Available)";
-    lowerOption.text = lowerAvailable > 0 ? `Lower Deck (${lowerAvailable} Available)` : "Lower Deck (Available)";
-
-    if (deckSelect.value === "Upper Deck" && upperAvailable <= 0) deckSelect.value = "";
-    if (deckSelect.value === "Lower Deck" && lowerAvailable <= 0) deckSelect.value = "";
-}
-
-document.addEventListener("DOMContentLoaded", function () {
-    const searchInput = document.getElementById("searchInput");
-    const tenantTableBody = document.querySelector("#activeTenants tbody");
-    const notFoundBanner = document.getElementById("notFound");
-
-    if (!searchInput || !tenantTableBody) {
-        return;
-    }
-
-    searchInput.addEventListener("input", function () {
-        const filter = this.value.toLowerCase().trim();
-        const rows = tenantTableBody.querySelectorAll("tr");
-        let found = false;
-
-        rows.forEach(row => {
-            const nameCell = row.querySelector("td:nth-child(3)");
-            const nameText = nameCell ? nameCell.textContent.toLowerCase() : "";
-
-            if (filter && nameText.includes(filter)) {
-                row.style.display = "";
-                row.classList.add("highlight");
-                found = true;
-            } else if (!filter) {
-                row.style.display = "";
-                row.classList.remove("highlight");
-                found = true;
-            } else {
-                row.style.display = "none";
-                row.classList.remove("highlight");
-            }
-        });
-
-        if (notFoundBanner) {
-            notFoundBanner.style.display = found ? "none" : "block";
+    function buildRoomLabel(room) {
+        const base = `${room.room_number} • ${room.room_type}`;
+        if (room.room_type === 'Whole Room') {
+            return `${base} (Available: ${room.available_slots})`;
         }
-    });
-});
+        return `${base} (Upper ${room.upper_available}/${room.upper_deck_count}, Lower ${room.lower_available}/${room.lower_deck_count})`;
+    }
 
-function confirmSave() {
-    const tenantInput = document.querySelector('input[name="tenant_name"]');
-    const tenantName = tenantInput.value.trim().toUpperCase();
-    return confirm(`Are you sure you want to save tenant "${tenantName}"?`);
-}
+    function initAssignmentManager(containerId, addButtonId, templateId) {
+        const container = document.getElementById(containerId);
+        const addButton = document.getElementById(addButtonId);
+        const template = document.getElementById(templateId);
 
-function capitalizeName(input) {
-    let words = input.value.toLowerCase().split(' ');
-    for (let i = 0; i < words.length; i++) {
-        if(words[i].length > 0) {
-            words[i] = words[i][0].toUpperCase() + words[i].substr(1);
+        if (!container || !template) {
+            return null;
+        }
+
+        const minRows = parseInt(container.dataset.minRows || '1', 10);
+        const roomFieldName = container.dataset.roomName || 'room_id[]';
+        const deckFieldName = container.dataset.deckName || 'deck_type[]';
+
+        function getRows() {
+            return Array.from(container.querySelectorAll('[data-room-row]'));
+        }
+
+        function getSelectedRooms(excludeRow) {
+            return getRows()
+                .filter(row => row !== excludeRow)
+                .map(row => row.querySelector('.roomSelect')?.value)
+                .filter(value => value);
+        }
+
+        function ensureFallbackOption(select, selectedValue, rowEl) {
+            if (!selectedValue || roomInventoryMap.has(selectedValue)) {
+                return;
+            }
+            const option = document.createElement('option');
+            option.value = selectedValue;
+            const fallbackLabel = rowEl?.dataset.initialRoomNumber
+                ? `${rowEl.dataset.initialRoomNumber} • ${rowEl.dataset.initialRoomType || 'Room'}`
+                : `Room #${selectedValue}`;
+            option.textContent = `${fallbackLabel} (Inactive)`;
+            option.dataset.roomType = rowEl?.dataset.initialRoomType || '';
+            select.appendChild(option);
+        }
+
+        function populateRoomOptions(select, selectedRoomId, rowEl) {
+            const selectedValue = selectedRoomId ? String(selectedRoomId) : '';
+            const selectedInOthers = new Set(getSelectedRooms(rowEl));
+
+            select.innerHTML = '';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = '-- Select Room --';
+            select.appendChild(placeholder);
+
+            roomInventory.forEach(room => {
+                const option = document.createElement('option');
+                option.value = String(room.room_id);
+                option.textContent = buildRoomLabel(room);
+                option.dataset.roomType = room.room_type;
+
+                if (selectedInOthers.has(option.value) && option.value !== selectedValue) {
+                    option.disabled = true;
+                    option.textContent += ' (Already selected)';
+                } else if (room.available_slots <= 0 && option.value !== selectedValue) {
+                    option.disabled = true;
+                    option.textContent += ' (Full)';
+                }
+
+                select.appendChild(option);
+            });
+
+            ensureFallbackOption(select, selectedValue, rowEl);
+            select.value = selectedValue;
+        }
+
+        function updateDeckState(roomSelect, deckSelect, selectedDeck) {
+            const roomId = roomSelect.value;
+            const room = roomInventoryMap.get(roomId);
+
+            if (!roomId || !room) {
+                deckSelect.innerHTML = '<option value="">Deck</option>';
+                deckSelect.value = '';
+                deckSelect.disabled = true;
+                deckSelect.required = false;
+                return;
+            }
+
+            if (room.room_type === 'Whole Room') {
+                deckSelect.innerHTML = '<option value="">Whole Room</option>';
+                deckSelect.value = '';
+                deckSelect.disabled = true;
+                deckSelect.required = false;
+                return;
+            }
+
+            deckSelect.disabled = false;
+            deckSelect.required = true;
+            deckSelect.innerHTML = '';
+
+            const decks = [
+                {
+                    value: 'Lower Deck',
+                    available: room.lower_available,
+                    label: `Lower Deck (${room.lower_available}/${room.lower_deck_count} available)`
+                },
+                {
+                    value: 'Upper Deck',
+                    available: room.upper_available,
+                    label: `Upper Deck (${room.upper_available}/${room.upper_deck_count} available)`
+                }
+            ];
+
+            decks.forEach(deck => {
+                const option = document.createElement('option');
+                option.value = deck.value;
+                option.textContent = deck.label;
+                if (deck.available <= 0 && deck.value !== selectedDeck) {
+                    option.disabled = true;
+                    option.textContent += ' (Full)';
+                }
+                deckSelect.appendChild(option);
+            });
+
+            if (selectedDeck) {
+                deckSelect.value = selectedDeck;
+            }
+
+            if (!deckSelect.value) {
+                const firstEnabled = Array.from(deckSelect.options).find(opt => !opt.disabled && opt.value);
+                deckSelect.value = firstEnabled ? firstEnabled.value : '';
+            }
+        }
+
+        function refreshRoomOptions(excludeRow = null) {
+            getRows().forEach(row => {
+                if (row === excludeRow) {
+                    return;
+                }
+                const roomSelect = row.querySelector('.roomSelect');
+                const deckSelect = row.querySelector('.deckSelect');
+                const currentValue = roomSelect?.value || '';
+                populateRoomOptions(roomSelect, currentValue, row);
+                updateDeckState(roomSelect, deckSelect, deckSelect?.value || '');
+            });
+        }
+
+        function attachRowHandlers(row, initial = {}) {
+            const roomSelect = row.querySelector('.roomSelect');
+            const deckSelect = row.querySelector('.deckSelect');
+            const removeButton = row.querySelector('.remove-room');
+
+            row.dataset.initialRoomNumber = initial.room_number || '';
+            row.dataset.initialRoomType = initial.room_type || '';
+
+            if (roomSelect) {
+                roomSelect.name = roomFieldName;
+            }
+            if (deckSelect) {
+                deckSelect.name = deckFieldName;
+            }
+
+            roomSelect?.addEventListener('change', () => {
+                populateRoomOptions(roomSelect, roomSelect.value, row);
+                updateDeckState(roomSelect, deckSelect, deckSelect?.value || '');
+                refreshRoomOptions(row);
+            });
+
+            deckSelect?.addEventListener('change', () => {
+                updateDeckState(roomSelect, deckSelect, deckSelect.value);
+            });
+
+            removeButton?.addEventListener('click', () => {
+                if (getRows().length > minRows) {
+                    row.remove();
+                    refreshRoomOptions();
+                }
+            });
+        }
+
+        function addRow(initial = {}) {
+            const fragment = template.content.firstElementChild.cloneNode(true);
+            attachRowHandlers(fragment, initial);
+            container.appendChild(fragment);
+            const roomSelect = fragment.querySelector('.roomSelect');
+            const deckSelect = fragment.querySelector('.deckSelect');
+            populateRoomOptions(roomSelect, initial.room_id ?? initial.roomId ?? null, fragment);
+            updateDeckState(roomSelect, deckSelect, initial.deck_type ?? initial.deckType ?? '');
+            return fragment;
+        }
+
+        if (addButton) {
+            addButton.addEventListener('click', () => {
+                addRow({});
+                refreshRoomOptions();
+            });
+        }
+
+        return {
+            reset(assignments = []) {
+                container.innerHTML = '';
+                const rows = assignments.length ? assignments : Array.from({ length: minRows }, () => ({}));
+                rows.forEach(item => addRow(item));
+                refreshRoomOptions();
+            }
+        };
+    }
+
+    function parseAssignments(json) {
+        try {
+            const parsed = JSON.parse(json || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (err) {
+            console.warn('Invalid assignments payload', err);
+            return [];
         }
     }
-    input.value = words.join(' ');
-}
 
-// ---------- ADD THIS PART FOR FULLNAME + ADDRESS ---------- //
-document.addEventListener("DOMContentLoaded", function () {
-    const nameField = document.querySelector('input[name="tenant_name"]');
-    const addressField = document.querySelector('input[name="address"]');
-
-    if (nameField) {
-        nameField.addEventListener("input", function () {
-            capitalizeName(this);
+    function enforceNumericInputs(selectors) {
+        document.querySelectorAll(selectors).forEach(input => {
+            input.addEventListener('input', function () {
+                this.value = this.value.replace(/\D/g, '').slice(0, 11);
+            });
         });
     }
 
-    if (addressField) {
-        addressField.addEventListener("input", function () {
-            capitalizeName(this);
-        });
-    }
-});
+    document.addEventListener('DOMContentLoaded', () => {
+        addAssignmentManager = initAssignmentManager('addRoomContainer', 'addRoomRowBtn', 'roomRowTemplate');
+        if (addAssignmentManager) {
+            addAssignmentManager.reset([]);
+        }
 
-// ----------- DELETE TENANT WITH SWEETALERT2 -----------
+        editAssignmentManager = initAssignmentManager('editRoomContainer', 'editAddRoomRowBtn', 'editRoomRowTemplate');
 
-document.querySelectorAll('.btn-delete').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-        e.preventDefault();
+        const searchInput = document.getElementById('searchInput');
+        const tenantTableBody = document.querySelector('#activeTenants tbody');
+        const notFoundBanner = document.getElementById('notFound');
 
-        const tenantRow = this.closest('tr');
-        const url = this.href;
-        const tenantName = this.getAttribute('data-name') || 'this tenant';
+        if (searchInput && tenantTableBody) {
+            searchInput.addEventListener('input', function () {
+                const filter = this.value.toLowerCase().trim();
+                const rows = tenantTableBody.querySelectorAll('tr');
+                let found = false;
 
-        Swal.fire({
-            title: 'Are you sure?',
-            text: `Do you want to delete ${tenantName}?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, delete it',
-            cancelButtonText: 'Cancel',
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#6c757d'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                fetch(url)
-                    .then(res => res.text())
-                    .then(data => {
-                        if (data.trim() === "success") {
-                            Swal.fire({
-                                title: 'Deleted!',
-                                text: `${tenantName} has been deleted successfully.`,
-                                icon: 'success',
-                                timer: 1500,
-                                showConfirmButton: false
-                            });
+                rows.forEach(row => {
+                    const nameCell = row.querySelector('td:nth-child(3)');
+                    const nameText = nameCell ? nameCell.textContent.toLowerCase() : '';
 
-                            // Remove row from table
-                            tenantRow.remove();
-                        } else {
-                            Swal.fire('Error', 'Failed to delete tenant.', 'error');
-                        }
-                    })
-                    .catch(() => {
-                        Swal.fire('Error', 'Something went wrong while deleting.', 'error');
-                    });
+                    if (filter && nameText.includes(filter)) {
+                        row.style.display = '';
+                        row.classList.add('highlight');
+                        found = true;
+                    } else if (!filter) {
+                        row.style.display = '';
+                        row.classList.remove('highlight');
+                        found = true;
+                    } else {
+                        row.style.display = 'none';
+                        row.classList.remove('highlight');
+                    }
+                });
+
+                if (notFoundBanner) {
+                    notFoundBanner.style.display = found ? 'none' : 'block';
+                }
+            });
+        }
+
+        enforceNumericInputs('input[name="contact_number"], input[name="guardian_contact"], #editTenantContact, #editTenantGuardian');
+    });
+
+    window.openModal = function () {
+        addAssignmentManager?.reset([]);
+        document.getElementById('tenantModal').style.display = 'flex';
+    };
+
+    window.closeModal = function () {
+        document.getElementById('tenantModal').style.display = 'none';
+    };
+
+    window.openEditModal = function (id, name, address, contact, guardian, assignmentsJson, dateStarted) {
+        document.getElementById('editTenantId').value = id;
+        document.getElementById('editTenantName').value = name;
+        document.getElementById('editTenantAddress').value = address;
+        document.getElementById('editTenantContact').value = contact;
+        document.getElementById('editTenantGuardian').value = guardian;
+        document.getElementById('editTenantDate').value = dateStarted;
+
+        const assignments = parseAssignments(assignmentsJson);
+        editAssignmentManager?.reset(assignments);
+
+        const modal = new bootstrap.Modal(document.getElementById('editTenantModal'));
+        modal.show();
+    };
+
+    window.confirmSave = function () {
+        const form = document.getElementById('addTenantForm');
+        if (!form) {
+            return false;
+        }
+
+        const tenantInput = form.querySelector('input[name="tenant_name"]');
+        const roomSelects = form.querySelectorAll('#addRoomContainer .roomSelect');
+
+        const allRoomsSelected = Array.from(roomSelects).every(select => select.value);
+        if (!allRoomsSelected) {
+            AlertHelper?.error('Incomplete', 'Please select a room for each assignment.');
+            return false;
+        }
+
+        const tenantName = tenantInput ? tenantInput.value.trim().toUpperCase() : 'this tenant';
+        return confirm(`Are you sure you want to save tenant "${tenantName}"?`);
+    };
+
+    window.capitalizeName = function (input) {
+        const words = input.value.toLowerCase().split(' ').map(word => word ? word[0].toUpperCase() + word.slice(1) : '');
+        input.value = words.join(' ');
+    };
+
+    document.querySelectorAll('.btn-edit').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+
+            const raw = this.getAttribute('data-edit') || '{}';
+            let payload = null;
+
+            try {
+                payload = JSON.parse(raw);
+            } catch (err) {
+                console.error('Invalid edit payload', err);
+                AlertHelper?.error('Error', 'Unable to load tenant details for editing.');
+                return;
             }
+
+            if (!editAssignmentManager) {
+                AlertHelper?.error('Error', 'Unable to load room assignments for editing.');
+                return;
+            }
+
+            openEditModal(
+                payload.id ?? '',
+                payload.name ?? '',
+                payload.address ?? '',
+                payload.contact ?? '',
+                payload.guardian ?? '',
+                JSON.stringify(payload.assignments ?? []),
+                payload.date_started ?? ''
+            );
         });
     });
-});
 
+    document.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
 
-// ----------- EDIT TENANT MODAL FUNCTIONS -----------
+            const tenantRow = this.closest('tr');
+            const url = this.href;
+            const tenantName = this.getAttribute('data-name') || 'this tenant';
 
-// Open Edit Tenant modal and populate fields
-function openEditModal(id, name, address, contact, guardian, room_id, deck_type){
-    document.getElementById("editTenantId").value = id;
-    document.getElementById("editTenantName").value = name;
-    document.getElementById("editTenantAddress").value = address;
-    document.getElementById("editTenantContact").value = contact;
-    document.getElementById("editTenantGuardian").value = guardian;
-    document.getElementById("roomSelectEdit").value = room_id;
-    document.getElementById("deckSelectEdit").value = deck_type;
+            Swal.fire({
+                title: 'Are you sure?',
+                text: `Do you want to delete ${tenantName}?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, delete it',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(url)
+                        .then(res => res.text())
+                        .then(data => {
+                            if (data.trim() === 'success') {
+                                Swal.fire({
+                                    title: 'Deleted!',
+                                    text: `${tenantName} has been deleted successfully.`,
+                                    icon: 'success',
+                                    timer: 1500,
+                                    showConfirmButton: false
+                                });
 
-    // Update deck availability same as Add Tenant
-    checkDeckEdit();
-
-    // Show modal
-    let modal = new bootstrap.Modal(document.getElementById('editTenantModal'));
-    modal.show();
-}
-
-// Check deck availability for EDIT modal
-function checkDeckEdit() {
-    const roomSelect = document.getElementById("roomSelectEdit");
-    const deckSelect = document.getElementById("deckSelectEdit");
-    const deckWrapper = document.getElementById("deckWrapperEdit");
-
-    const selectedOption = roomSelect.options[roomSelect.selectedIndex];
-    if (!selectedOption) return;
-
-    const roomType = selectedOption.dataset.roomType;
-
-    if (roomType === "Whole Room") {
-        deckWrapper.style.display = "none";
-        deckSelect.value = "";
-        return;
-    }
-
-    deckWrapper.style.display = "block";
-
-    const upperCount = parseInt(selectedOption.dataset.upper);
-    const lowerCount = parseInt(selectedOption.dataset.lower);
-    const upperOccupied = parseInt(selectedOption.dataset.upperOccupied);
-    const lowerOccupied = parseInt(selectedOption.dataset.lowerOccupied);
-
-    const upperAvailable = upperCount - upperOccupied;
-    const lowerAvailable = lowerCount - lowerOccupied;
-
-    const upperOption = deckSelect.querySelector('option[value="Upper Deck"]');
-    const lowerOption = deckSelect.querySelector('option[value="Lower Deck"]');
-
-    // Upper
-    if (upperAvailable > 0) {
-        upperOption.disabled = false;
-        upperOption.style.color = "black";
-        upperOption.text = `Upper Deck (${upperAvailable} Available)`;
-    } else {
-        upperOption.disabled = true;
-        upperOption.style.color = "gray";
-        upperOption.text = "Upper Deck (0 Available)";
-    }
-
-    // Lower
-    if (lowerAvailable > 0) {
-        lowerOption.disabled = false;
-        lowerOption.style.color = "black";
-        lowerOption.text = `Lower Deck (${lowerAvailable} Available)`;
-    } else {
-        lowerOption.disabled = true;
-        lowerOption.style.color = "gray";
-        lowerOption.text = "Lower Deck (0 Available)";
-    }
-
-    if (deckSelect.value === "Upper Deck" && upperAvailable <= 0) deckSelect.value = "";
-    if (deckSelect.value === "Lower Deck" && lowerAvailable <= 0) deckSelect.value = "";
-}
-
+                                tenantRow.remove();
+                            } else {
+                                Swal.fire('Error', 'Failed to delete tenant.', 'error');
+                            }
+                        })
+                        .catch(() => {
+                            Swal.fire('Error', 'Something went wrong while deleting.', 'error');
+                        });
+                }
+            });
+        });
+    });
+})();
 </script>
 </body>
 </html>

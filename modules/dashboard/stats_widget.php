@@ -60,6 +60,7 @@
                         <div class="stat-text">
                             <h3>₱<?php echo number_format($totalIncome,2); ?></h3>
                             <h5>Total Income</h5>
+                            <small class="d-block text-white-50">Scope: <?php echo htmlspecialchars($incomeFilterLabel); ?></small>
                         </div>
                     </div>
                     <div class="stat-footer"><a href="../../modules/reports/total_income.php" class="view-details">View details</a></div>

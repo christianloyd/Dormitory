@@ -97,8 +97,8 @@ try {
     }
 
     // --- Insert notification into database ---
-    $notifMessage = "Reminder sent regarding billing for Room {$tenant['room_number']} due on {$tenant['due_date']}.";
-    $type = "Reminder";
+    $notifMessage = "Billing notice sent for Room {$tenant['room_number']} due on {$tenant['due_date']}.";
+    $type = "Billing Notice";
 
     $stmtNotif = $conn->prepare("
         INSERT INTO notifications (tenant_id, type, message, is_read, created_at)
@@ -114,7 +114,7 @@ try {
     ob_end_clean();
     echo json_encode([
         'success' => true,
-        'message' => count($sent_numbers) > 0 ? "Reminder sent successfully to " . count($sent_numbers) . " recipient(s)." : "Reminder logged but SMS not sent.",
+        'message' => count($sent_numbers) > 0 ? "Billing notice sent to " . count($sent_numbers) . " recipient(s)." : "Billing notice logged but SMS not sent.",
         'sent_to' => $sent_numbers,
         'sms_results' => $sms_results,
         'sms_preview' => $message,

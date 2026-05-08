@@ -35,7 +35,7 @@ $current_reminder .= "Due Date: {$sample_tenant['due_date']}\n";
 $current_reminder .= "Payment Date: " . ($sample_tenant['payment_date'] ?: "(Not yet paid)") . "\n\n";
 $current_reminder .= "Charges:\n";
 $current_reminder .= "- Base Rent: ₱" . number_format($sample_tenant['base_rent'],2) . "\n";
-$current_reminder .= "- Interest: ₱" . number_format($sample_tenant['interest'],2) . "\n";
+$current_reminder .= "- Late Payment Charge: ₱" . number_format($sample_tenant['interest'],2) . "\n";
 
 if (!empty($utilityFees)) {
     foreach ($utilityFees as $i => $fee) {
